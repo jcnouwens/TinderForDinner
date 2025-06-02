@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TinderForDinner",
-    "slug": "TinderForDinner",
+    "slug": "tinderfordinner",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,6 +24,16 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-web-browser",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "bca286ac-96a6-4049-863e-10291bdbc032"
+      }
+    },
+    "owner": "jcnouwens"
   }
 }
