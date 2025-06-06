@@ -1,83 +1,62 @@
-import '@testing-library/react-native/extend-expect';
+import '@testing-library/jest-native/extend-expect';
 
-// Mock Expo modules
-jest.mock('expo-status-bar', () => ({
-    StatusBar: 'StatusBar',
-}));
-
-jest.mock('expo-secure-store', () => ({
-    getItemAsync: jest.fn(),
-    setItemAsync: jest.fn(),
-    deleteItemAsync: jest.fn(),
-}));
-
-jest.mock('expo-auth-session', () => ({
-    makeRedirectUri: jest.fn(),
-    useAuthRequest: jest.fn(),
-    ResponseType: {
-        Code: 'code',
-    },
-    AuthRequest: jest.fn(),
-}));
-
-jest.mock('expo-web-browser', () => ({
-    openBrowserAsync: jest.fn(),
-}));
-
-// Mock React Native modules
-jest.mock('react-native-gesture-handler', () => {
-    const View = require('react-native/Libraries/Components/View/View');
-    return {
-        Swipeable: View,
-        DrawerLayout: View,
-        State: {},
-        ScrollView: View,
-        Slider: View,
-        Switch: View,
-        TextInput: View,
-        ToolbarAndroid: View,
-        ViewPagerAndroid: View,
-        DrawerLayoutAndroid: View,
-        WebView: View,
-        NativeViewGestureHandler: View,
-        TapGestureHandler: View,
-        FlingGestureHandler: View,
-        ForceTouchGestureHandler: View,
-        LongPressGestureHandler: View,
-        PanGestureHandler: View,
-        PinchGestureHandler: View,
-        RotationGestureHandler: View,
-        createNativeWrapper: jest.fn(),
-        gestureHandlerRootHOC: jest.fn(),
-        Directions: {},
-    };
-});
-
+// Mock react-native-reanimated
 jest.mock('react-native-reanimated', () => {
     const Reanimated = require('react-native-reanimated/mock');
+
+    // The mock for `call` immediately calls the callback which is incorrect
+    // So we override it with a no-op
     Reanimated.default.call = () => { };
+
     return Reanimated;
 });
 
-// Mock styled-components
-jest.mock('styled-components/native', () => {
-    const React = require('react');
-    const ReactNative = require('react-native');
+// Mock react-native-gesture-handler
+jest.mock('react-native-gesture-handler', () => ({
+    GestureHandlerRootView: ({ children }: { children: React.ReactNode }) => children,
+    State: {},
+    PanGestureHandler: 'PanGestureHandler',
+    TapGestureHandler: 'TapGestureHandler',
+    TouchableOpacity: 'TouchableOpacity',
+}));
 
-    const styled = (Component: any) => (styles: any) => (props: any) =>
-        React.createElement(Component, props);
+// Mock React Navigation
+jest.mock('@react-navigation/native', () => ({
+    NavigationContainer: ({ children }: { children: React.ReactNode }) => children,
+    useNavigation: () => ({
+        navigate: jest.fn(),
+        goBack: jest.fn(),
+    }),
+    useRoute: () => ({ params: {} }),
+    useFocusEffect: jest.fn(),
+}));
 
-    styled.View = styled(ReactNative.View);
-    styled.Text = styled(ReactNative.Text);
-    styled.TouchableOpacity = styled(ReactNative.TouchableOpacity);
-    styled.ScrollView = styled(ReactNative.ScrollView);
-    styled.Image = styled(ReactNative.Image);
+jest.mock('@react-navigation/stack', () => ({
+    createStackNavigator: () => ({
+        Navigator: ({ children }: { children: React.ReactNode }) => children,
+        Screen: ({ children }: { children: React.ReactNode }) => children,
+    }),
+}));
 
+jest.mock('@react-navigation/bottom-tabs', () => ({
+    createBottomTabNavigator: () => ({
+        Navigator: ({ children }: { children: React.ReactNode }) => children,
+        Screen: ({ children }: { children: React.ReactNode }) => children,
+    }),
+}));
+
+// Mock AsyncStorage
+jest.mock('@react-native-async-storage/async-storage', () =>
+    require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
+// Mock react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => {
+    const inset = { top: 0, right: 0, bottom: 0, left: 0 };
     return {
-        default: styled,
-        ...styled,
+        SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
+        SafeAreaConsumer: ({ children }: { children: (insets: typeof inset) => React.ReactNode }) => children(inset),
+        useSafeAreaInsets: () => inset,
+        useSafeAreaFrame: () => ({ x: 0, y: 0, width: 390, height: 844 }),
     };
 });
-
-// Global test setup
-global.__DEV__ = true;
