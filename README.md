@@ -2,4 +2,4 @@
 
 - npm install
 - npm run ios
-- npx expo start --ios 
+- npx expo start --ios
