@@ -1,15 +1,14 @@
 module.exports = {
   preset: 'jest-expo',
-  setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   testEnvironment: 'jsdom',
+  setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg))',
+    'node_modules/(?!(jest-)?@?react-native|@react-native-community|@react-navigation|expo|@expo|expo-.*|@expo/.*|react-native-.*|@react-native-async-storage|@tanstack)',
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
-    '!src/**/*.test.{ts,tsx}',
-    '!src/**/*.spec.{ts,tsx}',
+    '!src/**/index.ts',
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   testMatch: [
