@@ -132,14 +132,14 @@ const ThemeContext = createContext<ThemeContextType>({
 const useTheme = () => useContext(ThemeContext);
 
 // Theme provider component
-const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }: { children: ReactNode }) => {
   const colorScheme = useColorScheme();
   const [isDark, setIsDark] = useState(colorScheme === 'dark');
   
   const theme = isDark ? darkTheme : lightTheme;
   
   const toggleTheme = useCallback(() => {
-    setIsDark(prev => !prev);
+    setIsDark((prev: boolean) => !prev);
   }, []);
 
   const contextValue = React.useMemo(() => ({
