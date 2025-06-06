@@ -70,9 +70,9 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.profileButton}
-        onPress={() => navigation.navigate('Profile')}
+        onPress={() => navigation.navigate('ProfileTab')}
       >
         <Text style={styles.profileButtonText}>Profile</Text>
       </TouchableOpacity>
