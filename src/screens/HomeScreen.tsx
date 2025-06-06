@@ -3,12 +3,26 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'reac
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
+import { useSession } from '../context/SessionContext';
+import { useAuth } from '../context/AuthContext';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 const HomeScreen = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const [sessionCode, setSessionCode] = useState('');
+  const { createSession } = useSession();
+  const { user } = useAuth();
+
+  const handleCreateSession = async () => {
+    try {
+      const sessionId = await createSession(user?.id || 'guest');
+      Alert.alert('Session Created', `Share this code: ${sessionId}`);
+    } catch (error) {
+      console.error('Create session error:', error);
+      Alert.alert('Error', 'Unable to create session');
+    }
+  };
 
   const handleStartNewSession = () => {
     // TODO: Implement session creation logic
@@ -38,11 +52,17 @@ const HomeScreen = () => {
         <Text style={styles.cardDescription}>
           Create a new swipe session and invite a friend to join you in finding the perfect meal.
         </Text>
-        <TouchableOpacity 
-          style={[styles.button, styles.primaryButton]} 
+        <TouchableOpacity
+          style={[styles.button, styles.primaryButton]}
           onPress={handleStartNewSession}
         >
           <Text style={styles.buttonText}>Start Swiping</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.primaryButton, styles.createButton]}
+          onPress={handleCreateSession}
+        >
+          <Text style={styles.buttonText}>Create Session</Text>
         </TouchableOpacity>
       </View>
 
@@ -156,6 +176,9 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: '#FF6B6B',
+  },
+  createButton: {
+    marginTop: 10,
   },
   profileButton: {
     position: 'absolute',
