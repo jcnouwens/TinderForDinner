@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
@@ -17,7 +18,17 @@ const HomeScreen = () => {
   const handleCreateSession = async () => {
     try {
       const sessionId = await createSession(user?.id || 'guest');
-      Alert.alert('Session Created', `Share this code: ${sessionId}`);
+      Alert.alert(
+        'Session Created',
+        `Share this code: ${sessionId}`,
+        [
+          {
+            text: 'Copy',
+            onPress: () => Clipboard.setStringAsync(sessionId),
+          },
+          { text: 'OK' },
+        ]
+      );
     } catch (error) {
       console.error('Create session error:', error);
       Alert.alert('Error', 'Unable to create session');
