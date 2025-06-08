@@ -50,6 +50,13 @@ jest.mock('@react-native-async-storage/async-storage', () =>
     require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
+// Mock expo-clipboard
+jest.mock('expo-clipboard', () => ({
+    setStringAsync: jest.fn(() => Promise.resolve()),
+    getStringAsync: jest.fn(() => Promise.resolve('')),
+    hasStringAsync: jest.fn(() => Promise.resolve(false)),
+}));
+
 // Mock react-native-safe-area-context
 jest.mock('react-native-safe-area-context', () => {
     const inset = { top: 0, right: 0, bottom: 0, left: 0 };

@@ -22,6 +22,7 @@
     "@types/styled-components": "^5.1.34",
     "expo": "^53.0.11",
     "expo-auth-session": "~6.2.0",
+    "expo-clipboard": "^7.1.4",
     "expo-secure-store": "~14.2.3",
     "expo-status-bar": "~2.2.3",
     "expo-web-browser": "~14.1.6",
