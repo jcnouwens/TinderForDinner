@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Dimensions, Modal, ScrollView } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
@@ -8,12 +8,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 type MatchScreenRouteProp = RouteProp<RootStackParamList, 'Match'>;
 type MatchScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Match'>;
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const MatchScreen = () => {
   const route = useRoute<MatchScreenRouteProp>();
   const navigation = useNavigation<MatchScreenNavigationProp>();
   const { recipe } = route.params;
+  const [modalVisible, setModalVisible] = useState(false);
 
   const handleStartCooking = () => {
     navigation.navigate('RecipeDetail', { recipe });
@@ -23,14 +24,31 @@ const MatchScreen = () => {
     navigation.goBack();
   };
 
+  const handleImagePress = () => {
+    console.log('Recipe data:', JSON.stringify(recipe, null, 2));
+    console.log('Recipe summary:', recipe.summary);
+    console.log('Recipe ingredients:', recipe.ingredients);
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>It's a Match! 🎉</Text>
         <Text style={styles.subtitle}>You both want to make:</Text>
-        
+
         <View style={styles.recipeCard}>
-          <Image source={{ uri: recipe.image }} style={styles.recipeImage} />
+          <TouchableOpacity
+            onPress={handleImagePress}
+            activeOpacity={0.9}
+            testID="recipe-image-touchable"
+          >
+            <Image source={{ uri: recipe.image }} style={styles.recipeImage} testID="recipe-image" />
+          </TouchableOpacity>
           <View style={styles.recipeInfo}>
             <Text style={styles.recipeTitle}>{recipe.title}</Text>
             <View style={styles.recipeMeta}>
@@ -46,21 +64,89 @@ const MatchScreen = () => {
         </View>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={[styles.button, styles.primaryButton]} 
+          <TouchableOpacity
+            style={[styles.button, styles.primaryButton]}
             onPress={handleStartCooking}
           >
             <Text style={styles.primaryButtonText}>Start Cooking</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.button, styles.secondaryButton]} 
+
+          <TouchableOpacity
+            style={[styles.button, styles.secondaryButton]}
             onPress={handleBackToSwiping}
           >
             <Text style={styles.secondaryButtonText}>Keep Swiping</Text>
           </TouchableOpacity>
+
+          {/* Test button for modal */}
+          <TouchableOpacity
+            style={[styles.button, styles.primaryButton]}
+            onPress={handleImagePress}
+          >
+            <Text style={styles.primaryButtonText}>Test Modal</Text>
+          </TouchableOpacity>
         </View>
       </View>
+
+      {/* Recipe Details Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={closeModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{recipe.title}</Text>
+              <TouchableOpacity onPress={closeModal} style={styles.closeButton} testID="close-modal-button">
+                <MaterialIcons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalScrollView}
+              showsVerticalScrollIndicator={true}
+            >
+              <Image source={{ uri: recipe.image }} style={styles.modalImage} />
+
+              <View style={styles.modalMeta}>
+                <View style={styles.modalMetaItem}>
+                  <MaterialIcons name="schedule" size={20} color="#666" />
+                  <Text style={styles.modalMetaText}>{recipe.readyInMinutes} min</Text>
+                </View>
+                <View style={styles.modalMetaItem}>
+                  <MaterialIcons name="restaurant" size={20} color="#666" />
+                  <Text style={styles.modalMetaText}>{recipe.servings} servings</Text>
+                </View>
+              </View>
+
+              {recipe.summary && (
+                <View style={styles.modalSection}>
+                  <Text style={styles.modalSectionTitle}>Description</Text>
+                  <Text style={styles.modalDescription}>
+                    {recipe.summary.replace(/<[^>]*>?/gm, '')}
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>Ingredients</Text>
+                {recipe.ingredients && recipe.ingredients.length > 0 ? (
+                  recipe.ingredients.map((ingredient: string, index: number) => (
+                    <View key={index} style={styles.ingredientItem}>
+                      <View style={styles.bulletPoint} />
+                      <Text style={styles.ingredientText}>{ingredient}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.noDataText}>No ingredients listed.</Text>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -163,6 +249,100 @@ const styles = StyleSheet.create({
     color: '#FF6B6B',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: width * 0.9,
+    maxHeight: height * 0.8,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+  },
+  closeButton: {
+    padding: 5,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalImage: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
+  },
+  modalMeta: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 15,
+  },
+  modalMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 10,
+  },
+  modalMetaText: {
+    marginLeft: 5,
+    color: '#666',
+    fontSize: 14,
+  },
+  modalSection: {
+    padding: 20,
+    paddingTop: 0,
+  },
+  modalSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  modalDescription: {
+    fontSize: 15,
+    color: '#444',
+    lineHeight: 22,
+    marginBottom: 15,
+  },
+  ingredientItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  bulletPoint: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF6B6B',
+    marginRight: 10,
+  },
+  ingredientText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#444',
+    lineHeight: 20,
+  },
+  noDataText: {
+    fontStyle: 'italic',
+    color: '#999',
+    marginTop: 5,
   },
 });
 

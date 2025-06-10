@@ -75,6 +75,36 @@ const HomeScreen = () => {
         >
           <Text style={styles.buttonText}>Create Session</Text>
         </TouchableOpacity>
+
+        {/* Test button for MatchScreen */}
+        <TouchableOpacity
+          style={[styles.button, styles.primaryButton, styles.createButton]}
+          onPress={() => {
+            const testRecipe = {
+              id: '1',
+              title: 'Creamy Garlic Pasta',
+              image: 'https://spoonacular.com/recipeImages/716429-556x370.jpg',
+              readyInMinutes: 25,
+              servings: 2,
+              sourceUrl: 'https://spoonacular.com/creamy-garlic-pasta-716429',
+              summary: 'A rich and creamy pasta dish with garlic that\'s perfect for a cozy dinner.',
+              ingredients: [
+                '8 oz fettuccine pasta',
+                '4 cloves garlic, minced',
+                '1 cup heavy cream',
+                '1/2 cup parmesan cheese',
+                '2 tbsp butter',
+                'Salt and pepper to taste',
+                'Fresh parsley for garnish'
+              ],
+              instructions: [],
+              diets: []
+            };
+            navigation.navigate('Match', { recipe: testRecipe });
+          }}
+        >
+          <Text style={styles.buttonText}>Test Match Screen</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={[styles.card, styles.joinCard]}>
@@ -90,8 +120,8 @@ const HomeScreen = () => {
           autoCapitalize="characters"
           placeholderTextColor="#999"
         />
-        <TouchableOpacity 
-          style={[styles.button, styles.secondaryButton]} 
+        <TouchableOpacity
+          style={[styles.button, styles.secondaryButton]}
           onPress={handleJoinSession}
           disabled={!sessionCode.trim()}
         >

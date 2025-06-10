@@ -23,19 +23,19 @@ export const RecipeDetailScreen = () => {
   };
 
   const handleViewOriginal = () => {
-    Linking.openURL(recipe.sourceUrl).catch(err => 
+    Linking.openURL(recipe.sourceUrl).catch(err =>
       console.error("Couldn't load page", err)
     );
   };
 
   return (
     <View style={styles.container}>
-      <Image source={{ uri: recipe.image }} style={styles.recipeImage} />
-      
-      <ScrollView style={styles.content}>
+      <Image source={{ uri: recipe.image }} style={styles.recipeImage} testID="recipe-detail-image" />
+
+      <ScrollView style={styles.content} testID="recipe-detail-scroll">
         <View style={styles.header}>
           <Text style={styles.title}>{recipe.title}</Text>
-          
+
           <View style={styles.metaContainer}>
             <View style={styles.metaItem}>
               <MaterialIcons name="schedule" size={20} color="#666" />
@@ -46,7 +46,7 @@ export const RecipeDetailScreen = () => {
               <Text style={styles.metaText}>{recipe.servings} servings</Text>
             </View>
           </View>
-          
+
           {recipe.summary && (
             <Text style={styles.summary}>
               {recipe.summary.replace(/<[^>]*>?/gm, '')}
@@ -56,43 +56,47 @@ export const RecipeDetailScreen = () => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ingredients</Text>
-          {recipe.ingredients && recipe.ingredients.length > 0 ? (
-            recipe.ingredients.map((ingredient: string, index: number) => (
-              <View key={index} style={styles.ingredientItem}>
-                <View style={styles.bulletPoint} />
-                <Text style={styles.ingredientText}>{ingredient}</Text>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.noDataText}>No ingredients listed.</Text>
-          )}
+          <View testID="ingredients-list">
+            {recipe.ingredients && recipe.ingredients.length > 0 ? (
+              recipe.ingredients.map((ingredient: string, index: number) => (
+                <View key={index} style={styles.ingredientItem}>
+                  <View style={styles.bulletPoint} />
+                  <Text style={styles.ingredientText}>{ingredient}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.noDataText}>No ingredients listed.</Text>
+            )}
+          </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Instructions</Text>
-          {recipe.instructions && recipe.instructions.length > 0 ? (
-            recipe.instructions.map((step: string, index: number) => (
-              <View key={index} style={styles.instructionStep}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>{index + 1}</Text>
+          <View testID="instructions-list">
+            {recipe.instructions && recipe.instructions.length > 0 ? (
+              recipe.instructions.map((step: string, index: number) => (
+                <View key={index} style={styles.instructionStep}>
+                  <View style={styles.stepNumber}>
+                    <Text style={styles.stepNumberText}>{index + 1}</Text>
+                  </View>
+                  <Text style={styles.instructionText}>{step}</Text>
                 </View>
-                <Text style={styles.instructionText}>{step}</Text>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.noDataText}>No instructions available.</Text>
-          )}
+              ))
+            ) : (
+              <Text style={styles.noDataText}>No instructions available.</Text>
+            )}
+          </View>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[styles.button, styles.secondaryButton]} 
+        <TouchableOpacity
+          style={[styles.button, styles.secondaryButton]}
           onPress={handleViewOriginal}
         >
           <Text style={styles.secondaryButtonText}>View Original</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.button, styles.primaryButton]}
           onPress={handleShareRecipe}
         >

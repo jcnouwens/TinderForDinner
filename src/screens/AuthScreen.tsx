@@ -34,42 +34,44 @@ const AuthScreen = () => {
   if (isLoading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
+        <ActivityIndicator size="large" color="#FF6B6B" testID="loading-indicator" />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="auth-container">
       <View style={styles.logoContainer}>
         <Text style={styles.title}>Tinder for Dinner</Text>
         <Text style={styles.subtitle}>Swipe right to find your perfect meal match!</Text>
       </View>
-      
+
       <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={[styles.button, styles.googleButton]} 
+        <TouchableOpacity
+          style={[styles.button, styles.googleButton]}
           onPress={handleGoogleSignIn}
         >
-          <Image 
-            source={require('../../assets/google-icon.png')} 
-            style={styles.icon} 
+          <Image
+            source={require('../../assets/google-icon.png')}
+            style={styles.icon}
+            testID="google-icon"
           />
           <Text style={[styles.buttonText, styles.googleButtonText]}>Continue with Google</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={[styles.button, styles.instagramButton]} 
+        <TouchableOpacity
+          style={[styles.button, styles.instagramButton]}
           onPress={handleInstagramSignIn}
         >
-          <Image 
-            source={require('../../assets/instagram-icon.png')} 
-            style={styles.icon} 
+          <Image
+            source={require('../../assets/instagram-icon.png')}
+            style={styles.icon}
+            testID="instagram-icon"
           />
           <Text style={[styles.buttonText, styles.instagramButtonText]}>Continue with Instagram</Text>
         </TouchableOpacity>
       </View>
-      
+
       <Text style={styles.footer}>
         By continuing, you agree to our Terms of Service and Privacy Policy
       </Text>

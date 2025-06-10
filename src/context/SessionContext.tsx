@@ -30,7 +30,11 @@ const SessionContext = createContext<SessionContextData>({} as SessionContextDat
 
 // Custom hook to use the session context
 export const useSession = () => {
-  return useContext(SessionContext);
+  const context = useContext(SessionContext);
+  if (!context || Object.keys(context).length === 0) {
+    throw new Error('useSession must be used within a SessionProvider');
+  }
+  return context;
 };
 
 // Session provider component
@@ -80,7 +84,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
       },
       // Add more mock recipes as needed
     ];
-    
+
     setRecipes(mockRecipes);
     if (mockRecipes.length > 0) {
       setCurrentRecipe(mockRecipes[0]);
@@ -91,13 +95,13 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
   const createSession = async (userId: string): Promise<string> => {
     try {
       setIsLoading(true);
-      
+
       // In a real app, you would call your backend API to create a session
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // Generate a random session ID
       const sessionId = `sess_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const newSession: Session = {
         id: sessionId,
         userIds: [userId],
@@ -105,11 +109,11 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
         active: true,
         createdAt: new Date(),
       };
-      
+
       setCurrentSession(newSession);
-      
+
       return sessionId;
-      
+
     } catch (error) {
       console.error('Error creating session:', error);
       throw new Error('Failed to create a new session. Please try again.');
@@ -122,10 +126,10 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
   const joinSession = async (sessionId: string, userId: string): Promise<boolean> => {
     try {
       setIsLoading(true);
-      
+
       // In a real app, you would validate the session ID with your backend
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // For demo purposes, we'll simulate joining a session
       const existingSession: Session = {
         id: sessionId,
@@ -134,11 +138,11 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
         active: true,
         createdAt: new Date(),
       };
-      
+
       setCurrentSession(existingSession);
-      
+
       return true;
-      
+
     } catch (error) {
       console.error('Error joining session:', error);
       throw new Error('Failed to join the session. Please check the session ID and try again.');
@@ -159,26 +163,26 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
   const swipeRight = async (recipeId: string): Promise<boolean> => {
     try {
       setIsSwiping(true);
-      
+
       // In a real app, you would send this to your backend to check for matches
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // For demo purposes, we'll simulate a 30% chance of a match
       const isMatch = Math.random() < 0.3;
-      
+
       if (isMatch && currentSession) {
         // Add to matches
         const updatedSession = {
           ...currentSession,
           matches: [...currentSession.matches, recipeId],
         };
-        
+
         setCurrentSession(updatedSession);
         return true;
       }
-      
+
       return false;
-      
+
     } catch (error) {
       console.error('Error swiping right:', error);
       return false;

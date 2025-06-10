@@ -28,7 +28,11 @@ const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
 // Custom hook to use the auth context
 export const useAuth = () => {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context || Object.keys(context).length === 0) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
 
 // Auth provider component
@@ -47,7 +51,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // In a real app, you would retrieve the user token from secure storage
         // and validate it with your backend
         const userToken = await SecureStore.getItemAsync('userToken');
-        
+
         if (userToken) {
           // In a real app, you would verify the token with your backend
           // and fetch the user data
@@ -74,11 +78,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      
+
       // In a real app, you would call your authentication API here
       // For now, we'll simulate a successful login
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Simulate API response
       const mockUser = {
         id: '1',
@@ -87,13 +91,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
         token: 'mock-jwt-token',
       };
-      
+
       // Store the user token in secure storage
       await SecureStore.setItemAsync('userToken', mockUser.token);
-      
+
       // Update the user state
       setUser(mockUser);
-      
+
     } catch (error) {
       console.error('Error signing in:', error);
       throw new Error('Failed to sign in. Please check your credentials and try again.');
@@ -106,11 +110,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signInWithGoogle = async () => {
     try {
       setIsLoading(true);
-      
+
       // In a real app, you would integrate with Google Sign-In
       // For now, we'll simulate a successful login
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Simulate API response
       const mockUser = {
         id: 'google-123',
@@ -119,13 +123,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         avatar: 'https://randomuser.me/api/portraits/women/1.jpg',
         token: 'mock-google-token',
       };
-      
+
       // Store the user token in secure storage
       await SecureStore.setItemAsync('userToken', mockUser.token);
-      
+
       // Update the user state
       setUser(mockUser);
-      
+
     } catch (error) {
       console.error('Error signing in with Google:', error);
       throw new Error('Failed to sign in with Google. Please try again.');
@@ -138,11 +142,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signInWithInstagram = async () => {
     try {
       setIsLoading(true);
-      
+
       // In a real app, you would integrate with Instagram OAuth
       // For now, we'll simulate a successful login
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Simulate API response
       const mockUser = {
         id: 'instagram-123',
@@ -151,13 +155,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
         token: 'mock-instagram-token',
       };
-      
+
       // Store the user token in secure storage
       await SecureStore.setItemAsync('userToken', mockUser.token);
-      
+
       // Update the user state
       setUser(mockUser);
-      
+
     } catch (error) {
       console.error('Error signing in with Instagram:', error);
       throw new Error('Failed to sign in with Instagram. Please try again.');
@@ -170,11 +174,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signUp = async (email: string, password: string, name: string) => {
     try {
       setIsLoading(true);
-      
+
       // In a real app, you would call your registration API here
       // For now, we'll simulate a successful registration
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       // Simulate API response
       const mockUser = {
         id: 'new-user-123',
@@ -183,13 +187,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
         token: 'mock-jwt-token',
       };
-      
+
       // Store the user token in secure storage
       await SecureStore.setItemAsync('userToken', mockUser.token);
-      
+
       // Update the user state
       setUser(mockUser);
-      
+
     } catch (error) {
       console.error('Error signing up:', error);
       throw new Error('Failed to create an account. Please try again.');
@@ -202,15 +206,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async () => {
     try {
       setIsLoading(true);
-      
+
       // In a real app, you might want to revoke the token on the server
-      
+
       // Remove the token from secure storage
       await SecureStore.deleteItemAsync('userToken');
-      
+
       // Clear the user state
       setUser(null);
-      
+
     } catch (error) {
       console.error('Error signing out:', error);
       throw new Error('Failed to sign out. Please try again.');

@@ -9,7 +9,7 @@ type ProfileScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Prof
 
 const ProfileScreen = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
-  
+
   // Mock user data - in a real app, this would come from your auth context or state
   const [user, setUser] = useState({
     name: 'Alex Johnson',
@@ -17,7 +17,7 @@ const ProfileScreen = () => {
     avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
     memberSince: 'January 2023',
   });
-  
+
   const [preferences, setPreferences] = useState({
     notifications: true,
     darkMode: false,
@@ -62,7 +62,7 @@ const ProfileScreen = () => {
   const renderPreferenceItem = (label: string, preference: keyof typeof preferences, icon: string) => (
     <View style={styles.preferenceItem}>
       <View style={styles.preferenceLabel}>
-        <MaterialIcons name={icon as any} size={24} color="#666" style={styles.preferenceIcon} />
+        <MaterialIcons name={icon as any} size={24} color="#666" style={styles.preferenceIcon} testID={`${preference}-icon`} />
         <Text style={styles.preferenceText}>{label}</Text>
       </View>
       <Switch
@@ -70,6 +70,7 @@ const ProfileScreen = () => {
         onValueChange={() => togglePreference(preference)}
         trackColor={{ false: '#ddd', true: '#FF6B6B' }}
         thumbColor="#fff"
+        testID={`${preference}-switch`}
       />
     </View>
   );
@@ -79,8 +80,8 @@ const ProfileScreen = () => {
       <ScrollView style={styles.scrollView}>
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            <Image source={{ uri: user.avatar }} style={styles.avatar} />
-            <TouchableOpacity style={styles.editButton}>
+            <Image source={{ uri: user.avatar }} style={styles.avatar} testID="user-avatar" />
+            <TouchableOpacity style={styles.editButton} testID="edit-avatar-button">
               <MaterialIcons name="edit" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
