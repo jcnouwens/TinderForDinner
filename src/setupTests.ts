@@ -20,30 +20,7 @@ jest.mock('react-native-gesture-handler', () => ({
     TouchableOpacity: 'TouchableOpacity',
 }));
 
-// Mock React Navigation
-jest.mock('@react-navigation/native', () => ({
-    NavigationContainer: ({ children }: { children: React.ReactNode }) => children,
-    useNavigation: () => ({
-        navigate: jest.fn(),
-        goBack: jest.fn(),
-    }),
-    useRoute: () => ({ params: {} }),
-    useFocusEffect: jest.fn(),
-}));
-
-jest.mock('@react-navigation/stack', () => ({
-    createStackNavigator: () => ({
-        Navigator: ({ children }: { children: React.ReactNode }) => children,
-        Screen: ({ children }: { children: React.ReactNode }) => children,
-    }),
-}));
-
-jest.mock('@react-navigation/bottom-tabs', () => ({
-    createBottomTabNavigator: () => ({
-        Navigator: ({ children }: { children: React.ReactNode }) => children,
-        Screen: ({ children }: { children: React.ReactNode }) => children,
-    }),
-}));
+// React Navigation mocks are handled in jest.setup.js
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () =>
