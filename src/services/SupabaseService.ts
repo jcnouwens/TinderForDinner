@@ -181,16 +181,34 @@ export class SupabaseService {
         }
     }
 
-    static async startSession(sessionId: string): Promise<boolean> {
+    static async startSession(sessionId: string, hostUserId: string): Promise<boolean> {
         try {
+            // Verify that the requester is the host
+            const { data: session, error: sessionError } = await supabase
+                .from('sessions')
+                .select('host_id')
+                .eq('id', sessionId)
+                .single();
+
+            if (sessionError || !session || session.host_id !== hostUserId) {
+                console.error('Unauthorized: Only host can start session');
+                return false;
+            }
+
+            // Start the session
             const { error } = await supabase
                 .from('sessions')
                 .update({ active: true })
                 .eq('id', sessionId);
 
-            return !error;
+            if (error) {
+                console.error('Error starting session:', error);
+                return false;
+            }
+
+            return true;
         } catch (error) {
-            console.error('Error starting session:', error);
+            console.error('Error in startSession:', error);
             return false;
         }
     }
@@ -203,10 +221,67 @@ export class SupabaseService {
                 .eq('session_id', sessionId)
                 .eq('user_id', userId);
 
-            return !error;
+            if (error) {
+                console.error('Error leaving session:', error);
+                return false;
+            }
+
+            return true;
         } catch (error) {
-            console.error('Error leaving session:', error);
+            console.error('Error in leaveSession:', error);
             return false;
+        }
+    }
+
+    static async removeParticipant(sessionId: string, participantUserId: string, hostUserId: string): Promise<boolean> {
+        try {
+            // First verify that the requester is the host
+            const { data: session, error: sessionError } = await supabase
+                .from('sessions')
+                .select('host_id')
+                .eq('id', sessionId)
+                .single();
+
+            if (sessionError || !session || session.host_id !== hostUserId) {
+                console.error('Unauthorized: Only host can remove participants');
+                return false;
+            }
+
+            // Remove the participant
+            const { error } = await supabase
+                .from('session_participants')
+                .update({ is_active: false })
+                .eq('session_id', sessionId)
+                .eq('user_id', participantUserId);
+
+            if (error) {
+                console.error('Error removing participant:', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error in removeParticipant:', error);
+            return false;
+        }
+    }
+
+    static async getSessionByCode(sessionCode: string): Promise<SwipeSession | null> {
+        try {
+            const { data: sessionData, error: sessionError } = await supabase
+                .from('sessions')
+                .select('*')
+                .eq('session_code', sessionCode)
+                .single();
+
+            if (sessionError || !sessionData) {
+                return null;
+            }
+
+            return await this.getSession(sessionData.id);
+        } catch (error) {
+            console.error('Error in getSessionByCode:', error);
+            return null;
         }
     }
 

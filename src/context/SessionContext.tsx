@@ -38,6 +38,7 @@ type SessionProviderProps = {
 
 export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) => {
   const [currentSession, setCurrentSession] = useState<SwipeSession | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentRecipe, setCurrentRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
@@ -161,6 +162,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
       setSupabaseChannel(channel);
 
       setCurrentSession(session);
+      setCurrentUser(user);
       setParticipants(session.participants);
       setIsHost(true);
 
@@ -197,6 +199,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
       setSupabaseChannel(channel);
 
       setCurrentSession(session);
+      setCurrentUser(user);
       setParticipants(session.participants);
       setIsHost(session.hostId === user.id);
 
@@ -212,7 +215,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
 
   // Leave the current session
   const leaveSession = async () => {
-    if (!currentSession) return;
+    if (!currentSession || !currentUser) return;
 
     try {
       setIsLoading(true);
@@ -224,10 +227,11 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
       }
 
       // Leave session using Supabase
-      await SupabaseService.leaveSession(currentSession.id);
+      await SupabaseService.leaveSession(currentSession.id, currentUser.id);
 
       // Reset local state
       setCurrentSession(null);
+      setCurrentUser(null);
       setParticipants([]);
       setIsHost(false);
       setCurrentRecipe(recipes[0] || null);
@@ -243,28 +247,29 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
 
   // Remove a participant (host only)
   const removeParticipant = async (participantId: string): Promise<boolean> => {
-    if (!isHost || !currentSession) {
+    if (!isHost || !currentSession || !currentUser) {
       return false;
     }
 
     try {
       setIsLoading(true);
 
-      // In a real app, you would call your backend API
-      await new Promise(resolve => setTimeout(resolve, 300));
+      const success = await SupabaseService.removeParticipant(
+        currentSession.id, 
+        participantId, 
+        currentUser.id
+      );
 
-      const updatedParticipants = participants.filter(p => p.id !== participantId);
-      const updatedSession: SwipeSession = {
-        ...currentSession,
-        participants: updatedParticipants
-      };
-
-      setCurrentSession(updatedSession);
-      setParticipants(updatedParticipants);
-
-      return true;
+      if (success) {
+        // The real-time subscription will update the state automatically
+        return true;
+      } else {
+        Alert.alert('Error', 'Failed to remove participant');
+        return false;
+      }
     } catch (error) {
       console.error('Error removing participant:', error);
+      Alert.alert('Error', 'Failed to remove participant');
       return false;
     } finally {
       setIsLoading(false);
@@ -273,26 +278,25 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
 
   // Start the session (host only)
   const startSession = async (): Promise<boolean> => {
-    if (!isHost || !currentSession) {
+    if (!isHost || !currentSession || !currentUser) {
       return false;
     }
 
     try {
       setIsLoading(true);
 
-      // In a real app, you would call your backend API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const success = await SupabaseService.startSession(currentSession.id, currentUser.id);
 
-      const updatedSession: SwipeSession = {
-        ...currentSession,
-        active: true
-      };
-
-      setCurrentSession(updatedSession);
-
-      return true;
+      if (success) {
+        // The real-time subscription will update the state automatically
+        return true;
+      } else {
+        Alert.alert('Error', 'Failed to start session');
+        return false;
+      }
     } catch (error) {
       console.error('Error starting session:', error);
+      Alert.alert('Error', 'Failed to start session');
       return false;
     } finally {
       setIsLoading(false);
@@ -301,68 +305,41 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
 
   // Handle swipe right (like)
   const swipeRight = async (recipeId: string): Promise<boolean> => {
-    if (!currentSession) {
+    if (!currentSession || !currentUser) {
       return false;
     }
 
     try {
       setIsSwiping(true);
 
-      // In a real app, you would send this to your backend to check for matches
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Record the swipe in Supabase
+      const success = await SupabaseService.recordSwipe(
+        currentSession.id,
+        currentUser.id,
+        recipeId,
+        true // is_like = true
+      );
 
-      // Update current user's likes
-      const updatedParticipants = participants.map(p => {
-        if (p.id === currentSession.hostId || !isHost) { // Current user
-          return {
-            ...p,
-            likes: [...p.likes, recipeId],
-            currentSwipeCount: p.currentSwipeCount + 1
-          };
-        }
-        return p;
-      });
-
-      setParticipants(updatedParticipants);
-
-      // Check if it's a match based on session settings
-      let isMatch = false;
-
-      if (currentSession.requiresAllToMatch) {
-        // All participants must like it
-        const activeLikes = updatedParticipants
-          .filter(p => p.isActive)
-          .map(p => p.likes.includes(recipeId));
-        isMatch = activeLikes.length > 0 && activeLikes.every(liked => liked);
-      } else {
-        // Just need majority or at least 2 people
-        const likesCount = updatedParticipants
-          .filter(p => p.isActive && p.likes.includes(recipeId)).length;
-        isMatch = likesCount >= Math.max(2, Math.ceil(updatedParticipants.length / 2));
+      if (!success) {
+        Alert.alert('Error', 'Failed to record swipe');
+        return false;
       }
+
+      // Check for match
+      const isMatch = await SupabaseService.checkForMatch(currentSession.id, recipeId);
 
       if (isMatch) {
-        const updatedSession = {
-          ...currentSession,
-          matches: [...currentSession.matches, recipeId],
-          participants: updatedParticipants
-        };
-
-        setCurrentSession(updatedSession);
-        return true;
+        Alert.alert('🎉 Match!', 'Everyone loves this recipe!');
       }
 
-      // Update session with new participant data
-      const updatedSession = {
-        ...currentSession,
-        participants: updatedParticipants
-      };
-      setCurrentSession(updatedSession);
+      // Move to next recipe
+      await fetchNextRecipe();
 
-      return false;
+      return isMatch;
 
     } catch (error) {
       console.error('Error swiping right:', error);
+      Alert.alert('Error', 'Failed to process swipe');
       return false;
     } finally {
       setIsSwiping(false);
@@ -370,29 +347,34 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
   };
 
   // Handle swipe left (dislike)
-  const swipeLeft = (recipeId: string) => {
-    if (!currentSession) return;
+  const swipeLeft = async (recipeId: string): Promise<void> => {
+    if (!currentSession || !currentUser) return;
 
-    // Update current user's dislikes
-    const updatedParticipants = participants.map(p => {
-      if (p.id === currentSession.hostId || !isHost) { // Current user
-        return {
-          ...p,
-          dislikes: [...p.dislikes, recipeId],
-          currentSwipeCount: p.currentSwipeCount + 1
-        };
+    try {
+      setIsSwiping(true);
+
+      // Record the swipe in Supabase
+      const success = await SupabaseService.recordSwipe(
+        currentSession.id,
+        currentUser.id,
+        recipeId,
+        false // is_like = false
+      );
+
+      if (!success) {
+        Alert.alert('Error', 'Failed to record swipe');
+        return;
       }
-      return p;
-    });
 
-    setParticipants(updatedParticipants);
+      // Move to next recipe
+      await fetchNextRecipe();
 
-    // Update session
-    const updatedSession = {
-      ...currentSession,
-      participants: updatedParticipants
-    };
-    setCurrentSession(updatedSession);
+    } catch (error) {
+      console.error('Error swiping left:', error);
+      Alert.alert('Error', 'Failed to process swipe');
+    } finally {
+      setIsSwiping(false);
+    }
   };
 
   // Fetch the next recipe
@@ -423,6 +405,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
     <SessionContext.Provider
       value={{
         currentSession,
+        currentUser,
         currentRecipe,
         isLoading,
         isSwiping,
