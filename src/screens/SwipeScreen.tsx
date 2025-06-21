@@ -267,34 +267,41 @@ const SwipeScreen = () => {
     );
   };
 
+  // Current recipe state and animations
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [recipes, setRecipes] = useState(MOCK_RECIPES);
-  const translateX = useRef(new Animated.Value(0)).current;
-  const rotate = translateX.interpolate({
-    inputRange: [-width / 2, 0, width / 2],
-    outputRange: ['-20deg', '0deg', '20deg'],
-    extrapolate: 'clamp',
-  });
+  const [recipes, setRecipes] = useState([
+    {
+      id: '1',
+      title: 'Creamy Garlic Pasta',
+      image: 'https://spoonacular.com/recipeImages/716429-556x370.jpg',
+      readyInMinutes: 25,
+      servings: 2,
+      sourceUrl: 'https://spoonacular.com/creamy-garlic-pasta-716429',
+    },
+    {
+      id: '2',
+      title: 'Avocado Toast with Egg',
+      image: 'https://spoonacular.com/recipeImages/716300-556x370.jpg',
+      readyInMinutes: 15,
+      servings: 2,
+      sourceUrl: 'https://spoonacular.com/avocado-toast-with-egg-716300',
+    },
+    {
+      id: '3',
+      title: 'Chicken Tikka Masala',
+      image: 'https://spoonacular.com/recipeImages/715594-556x370.jpg',
+      readyInMinutes: 40,
+      servings: 4,
+      sourceUrl: 'https://spoonacular.com/chicken-tikka-masala-715594',
+    },
+  ]);
 
-  const onHandlerStateChange = (event: any) => {
-    if (event.nativeEvent.oldState === State.ACTIVE) {
-      const { translationX } = event.nativeEvent;
+  // For solo mode, use local recipe management
+  const currentDisplayRecipe = sessionId === 'solo-session'
+    ? recipes[currentIndex]
+    : currentRecipe;
 
-      if (translationX > SWIPE_THRESHOLD) {
-        // Swiped right (like)
-        handleSwipe('right');
-      } else if (translationX < -SWIPE_THRESHOLD) {
-        // Swiped left (dislike)
-        handleSwipe('left');
-      } else {
-        // Return to center
-        Animated.spring(translateX, {
-          toValue: 0,
-          useNativeDriver: true,
-        }).start();
-      }
-    }
-  };
+  // Rotation interpolation handled above
 
   const handleSwipe = (direction: 'left' | 'right') => {
     const newX = direction === 'right' ? width * 1.5 : -width * 1.5;
@@ -304,20 +311,22 @@ const SwipeScreen = () => {
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
-      // After animation completes, handle the action
-      if (direction === 'right') {
-        // In a real app, this would communicate with your backend
-        console.log('Liked:', recipes[currentIndex].title);
-      }
-
-      // Move to next card or reset if at the end
-      if (currentIndex < recipes.length - 1) {
-        setCurrentIndex(currentIndex + 1);
+      if (sessionId === 'solo-session') {
+        // Solo mode - just move to next recipe
+        if (currentIndex < recipes.length - 1) {
+          setCurrentIndex(currentIndex + 1);
+        } else {
+          setCurrentIndex(0); // Loop back to start
+        }
         translateX.setValue(0);
+        rotate.setValue(0);
       } else {
-        // Reset or fetch more recipes
-        setCurrentIndex(0);
-        translateX.setValue(0);
+        // Multi-user mode
+        if (direction === 'right') {
+          handleSwipeRight();
+        } else {
+          handleSwipeLeft();
+        }
       }
     });
   };
