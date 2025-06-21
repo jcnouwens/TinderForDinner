@@ -17,6 +17,7 @@ import SwipeScreen from '../screens/SwipeScreen';
 import MatchScreen from '../screens/MatchScreen';
 import RecipeDetailScreen from '../screens/RecipeDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import SessionLobbyScreen from '../screens/SessionLobbyScreen';
 
 // Create stack and tab navigators
 const Stack = createStackNavigator<RootStackParamList>();
@@ -26,26 +27,39 @@ const Tab = createBottomTabNavigator<BottomTabParamList>();
 const MainAppStack = () => {
   return (
     <Stack.Navigator>
-      <Stack.Screen 
-        name="Home" 
-        component={HomeScreen} 
-        options={{ 
+      <Stack.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
           title: 'Tinder for Dinner',
           headerShown: false
         }}
       />
-      <Stack.Screen 
-        name="Swipe" 
+      <Stack.Screen
+        name="SessionLobby"
+        component={SessionLobbyScreen}
+        options={{
+          title: 'Session Lobby',
+          headerShown: true,
+          headerTintColor: '#FF6B6B',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerBackTitle: 'Back',
+        }}
+      />
+      <Stack.Screen
+        name="Swipe"
         component={SwipeScreen}
-        options={{ 
+        options={{
           headerShown: false,
           gestureEnabled: false
         }}
       />
-      <Stack.Screen 
-        name="Match" 
+      <Stack.Screen
+        name="Match"
         component={MatchScreen}
-        options={{ 
+        options={{
           title: 'It\'s a Match!',
           headerBackTitle: 'Back',
           headerTintColor: '#FF6B6B',
@@ -54,10 +68,10 @@ const MainAppStack = () => {
           },
         }}
       />
-      <Stack.Screen 
-        name="RecipeDetail" 
+      <Stack.Screen
+        name="RecipeDetail"
         component={RecipeDetailScreen}
-        options={{ 
+        options={{
           title: 'Recipe Details',
           headerBackTitle: 'Back',
           headerTintColor: '#FF6B6B',
@@ -99,17 +113,17 @@ const MainTabs = () => {
         },
       })}
     >
-      <Tab.Screen 
-        name="HomeTab" 
-        component={MainAppStack} 
+      <Tab.Screen
+        name="HomeTab"
+        component={MainAppStack}
         options={{
           title: 'Home',
           tabBarLabel: 'Home',
         }}
       />
-      <Tab.Screen 
-        name="ProfileTab" 
-        component={ProfileScreen} 
+      <Tab.Screen
+        name="ProfileTab"
+        component={ProfileScreen}
         options={{
           title: 'Profile',
           tabBarLabel: 'Profile',
@@ -139,23 +153,33 @@ const AppNavigator = () => {
         {user ? (
           // User is authenticated
           <>
-            <Stack.Screen 
-              name="MainTabs" 
-              component={MainTabs} 
+            <Stack.Screen
+              name="MainTabs"
+              component={MainTabs}
             />
             {/* Additional screens that should be accessible without tabs */}
-            <Stack.Screen 
-              name="Swipe" 
-              component={SwipeScreen} 
+            <Stack.Screen
+              name="SessionLobby"
+              component={SessionLobbyScreen}
+              options={{
+                title: 'Session Lobby',
+                headerShown: true,
+                headerTintColor: '#FF6B6B',
+                headerTitleStyle: { fontWeight: 'bold' },
+              }}
+            />
+            <Stack.Screen
+              name="Swipe"
+              component={SwipeScreen}
               options={{ gestureEnabled: false }}
             />
             <Stack.Screen name="Match" component={MatchScreen} />
           </>
         ) : (
           // User is not authenticated
-          <Stack.Screen 
-            name="Auth" 
-            component={AuthScreen} 
+          <Stack.Screen
+            name="Auth"
+            component={AuthScreen}
             options={{ headerShown: false }}
           />
         )}

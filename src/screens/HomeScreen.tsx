@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Modal, Switch } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -12,47 +12,154 @@ type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 const HomeScreen = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const [sessionCode, setSessionCode] = useState('');
-  const { createSession } = useSession();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [maxParticipants, setMaxParticipants] = useState(4);
+  const [requiresAllToMatch, setRequiresAllToMatch] = useState(true);
+  const { createSession, joinSession, isLoading } = useSession();
   const { user } = useAuth();
 
   const handleCreateSession = async () => {
+    if (!user) {
+      Alert.alert('Error', 'Please sign in to create a session');
+      return;
+    }
+
     try {
-      const sessionId = await createSession(user?.id || 'guest');
+      const sessionCode = await createSession(user, maxParticipants, requiresAllToMatch);
+      setShowCreateModal(false);
+
       Alert.alert(
-        'Session Created',
-        `Share this code: ${sessionId}`,
+        'Session Created!',
+        `Your session code is: ${sessionCode}\n\nShare this code with friends to invite them.`,
         [
           {
-            text: 'Copy',
-            onPress: () => Clipboard.setStringAsync(sessionId),
+            text: 'Copy Code',
+            onPress: () => Clipboard.setStringAsync(sessionCode),
           },
-          { text: 'OK' },
+          {
+            text: 'Go to Lobby',
+            onPress: () => navigation.navigate('SessionLobby', {
+              sessionId: sessionCode,
+              isHost: true
+            }),
+          },
         ]
       );
     } catch (error) {
       console.error('Create session error:', error);
-      Alert.alert('Error', 'Unable to create session');
+      Alert.alert('Error', 'Unable to create session. Please try again.');
     }
   };
 
-  const handleStartNewSession = () => {
-    // TODO: Implement session creation logic
-    // For now, navigate directly to Swipe screen with a mock session ID
-    navigation.navigate('Swipe', { sessionId: 'mock-session-id' });
-  };
-
-  const handleJoinSession = () => {
+  const handleJoinSession = async () => {
     if (!sessionCode.trim()) {
       Alert.alert('Error', 'Please enter a session code');
       return;
     }
-    // TODO: Implement session joining logic
-    // For now, navigate to Swipe screen with the entered code
-    navigation.navigate('Swipe', { sessionId: sessionCode });
+
+    if (!user) {
+      Alert.alert('Error', 'Please sign in to join a session');
+      return;
+    }
+
+    try {
+      const success = await joinSession(sessionCode.toUpperCase().trim(), user);
+
+      if (success) {
+        navigation.navigate('SessionLobby', {
+          sessionId: sessionCode.toUpperCase().trim(),
+          isHost: false
+        });
+      } else {
+        Alert.alert('Error', 'Failed to join session. Please check the code and try again.');
+      }
+    } catch (error) {
+      console.error('Join session error:', error);
+      Alert.alert('Error', 'Unable to join session. Please check the code and try again.');
+    }
   };
+
+  const handleStartSolo = () => {
+    // Navigate directly to swipe screen for solo mode
+    navigation.navigate('Swipe', { sessionId: 'solo-session' });
+  };
+
+  const CreateSessionModal = () => (
+    <Modal
+      visible={showCreateModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowCreateModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Create New Session</Text>
+
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Max Participants: {maxParticipants}</Text>
+            <View style={styles.participantButtons}>
+              {[2, 3, 4, 5, 6].map(num => (
+                <TouchableOpacity
+                  key={num}
+                  style={[
+                    styles.participantButton,
+                    maxParticipants === num && styles.participantButtonActive
+                  ]}
+                  onPress={() => setMaxParticipants(num)}
+                >
+                  <Text style={[
+                    styles.participantButtonText,
+                    maxParticipants === num && styles.participantButtonTextActive
+                  ]}>
+                    {num}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Match Requirement</Text>
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchLabel}>
+                {requiresAllToMatch ? 'Everyone must agree' : 'Majority wins'}
+              </Text>
+              <Switch
+                value={requiresAllToMatch}
+                onValueChange={setRequiresAllToMatch}
+                trackColor={{ false: '#ccc', true: '#ff6b6b' }}
+                thumbColor="#fff"
+              />
+            </View>
+          </View>
+
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={[styles.button, styles.secondaryButton]}
+              onPress={() => setShowCreateModal(false)}
+            >
+              <Text style={[styles.buttonText, styles.secondaryButtonText]}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.primaryButton]}
+              onPress={handleCreateSession}
+              disabled={isLoading}
+            >
+              <Text style={styles.buttonText}>
+                {isLoading ? 'Creating...' : 'Create Session'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <View style={styles.container}>
+      <CreateSessionModal />
+
       <View style={styles.header}>
         <Text style={styles.title}>Tinder for Dinner</Text>
         <Text style={styles.subtitle}>Swipe, match, and cook together!</Text>
@@ -61,19 +168,25 @@ const HomeScreen = () => {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Start a New Session</Text>
         <Text style={styles.cardDescription}>
-          Create a new swipe session and invite a friend to join you in finding the perfect meal.
+          Create a multiplayer session and invite friends to join you in finding the perfect meal.
         </Text>
         <TouchableOpacity
           style={[styles.button, styles.primaryButton]}
-          onPress={handleStartNewSession}
+          onPress={() => setShowCreateModal(true)}
+          disabled={isLoading}
         >
-          <Text style={styles.buttonText}>Start Swiping</Text>
+          <Text style={styles.buttonText}>
+            {isLoading ? 'Creating...' : 'Create Multi-Player Session'}
+          </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
-          style={[styles.button, styles.primaryButton, styles.createButton]}
-          onPress={handleCreateSession}
+          style={[styles.button, styles.secondaryButton, styles.createButton]}
+          onPress={handleStartSolo}
         >
-          <Text style={styles.buttonText}>Create Session</Text>
+          <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+            Start Solo Session
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -84,26 +197,30 @@ const HomeScreen = () => {
         </Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter session code"
+          placeholder="Enter session code (e.g., HAPPY-PASTA-42)"
           value={sessionCode}
           onChangeText={setSessionCode}
           autoCapitalize="characters"
           placeholderTextColor="#999"
         />
-        <TouchableOpacity 
-          style={[styles.button, styles.secondaryButton]} 
+        <TouchableOpacity
+          style={[
+            styles.button,
+            styles.secondaryButton,
+            (!sessionCode.trim() || isLoading) && styles.disabledButton
+          ]}
           onPress={handleJoinSession}
-          disabled={!sessionCode.trim()}
+          disabled={!sessionCode.trim() || isLoading}
         >
           <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-            Join Session
+            {isLoading ? 'Joining...' : 'Join Session'}
           </Text>
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity
         style={styles.profileButton}
-        onPress={() => navigation.navigate('ProfileTab')}
+        onPress={() => navigation.navigate('Profile')}
       >
         <Text style={styles.profileButtonText}>Profile</Text>
       </TouchableOpacity>
@@ -191,6 +308,9 @@ const styles = StyleSheet.create({
   createButton: {
     marginTop: 10,
   },
+  disabledButton: {
+    opacity: 0.5,
+  },
   profileButton: {
     position: 'absolute',
     top: 20,
@@ -201,6 +321,78 @@ const styles = StyleSheet.create({
     color: '#FF6B6B',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    margin: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  settingRow: {
+    marginBottom: 20,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  participantButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  participantButton: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 25,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  participantButtonActive: {
+    backgroundColor: '#ff6b6b',
+    borderColor: '#ff6b6b',
+  },
+  participantButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  participantButtonTextActive: {
+    color: '#fff',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  switchLabel: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
   },
 });
 

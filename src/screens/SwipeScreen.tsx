@@ -1,9 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Animated, Dimensions, Alert } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import { useSession } from '../context/SessionContext';
+import { useAuth } from '../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 const SWIPE_THRESHOLD = width * 0.25;
@@ -11,94 +13,260 @@ const SWIPE_THRESHOLD = width * 0.25;
 type SwipeScreenRouteProp = RouteProp<RootStackParamList, 'Swipe'>;
 type SwipeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Swipe'>;
 
-// Mock data - in a real app, this would come from an API
-const MOCK_RECIPES: any[] = [
-  {
-    id: '1',
-    title: 'Creamy Garlic Pasta',
-    image: 'https://spoonacular.com/recipeImages/716429-556x370.jpg',
-    readyInMinutes: 25,
-    servings: 2,
-    sourceUrl: 'https://spoonacular.com/creamy-garlic-pasta-716429',
-  },
-  {
-    id: '2',
-    title: 'Avocado Toast with Egg',
-    image: 'https://spoonacular.com/recipeImages/716300-556x370.jpg',
-    readyInMinutes: 15,
-    servings: 2,
-    sourceUrl: 'https://spoonacular.com/avocado-toast-with-egg-716300',
-  },
-  {
-    id: '3',
-    title: 'Chicken Tikka Masala',
-    image: 'https://spoonacular.com/recipeImages/715594-556x370.jpg',
-    readyInMinutes: 40,
-    servings: 4,
-    sourceUrl: 'https://spoonacular.com/chicken-tikka-masala-715594',
-  },
-  {
-    id: '4',
-    title: 'Vegetable Stir Fry',
-    image: 'https://spoonacular.com/recipeImages/716304-556x370.jpg',
-    readyInMinutes: 20,
-    servings: 2,
-    sourceUrl: 'https://spoonacular.com/vegetable-stir-fry-716304',
-  },
-  {
-    id: '5',
-    title: 'Classic Margherita Pizza',
-    image: 'https://spoonacular.com/recipeImages/715594-556x370.jpg',
-    readyInMinutes: 30,
-    servings: 4,
-    sourceUrl: 'https://spoonacular.com/classic-margherita-pizza-715594',
-  },
-  {
-    id: '6',
-    title: 'Beef Tacos',
-    image: 'https://spoonacular.com/recipeImages/715594-556x370.jpg',
-    readyInMinutes: 25,
-    servings: 4,
-    sourceUrl: 'https://spoonacular.com/beef-tacos-715594',
-  },
-  {
-    id: '7',
-    title: 'Greek Salad',
-    image: 'https://spoonacular.com/recipeImages/715594-556x370.jpg',
-    readyInMinutes: 15,
-    servings: 2,
-    sourceUrl: 'https://spoonacular.com/greek-salad-715594',
-  },
-  {
-    id: '8',
-    title: 'Chocolate Chip Cookies',
-    image: 'https://spoonacular.com/recipeImages/715594-556x370.jpg',
-    readyInMinutes: 30,
-    servings: 24,
-    sourceUrl: 'https://spoonacular.com/chocolate-chip-cookies-715594',
-  }
-];
-
 const SwipeScreen = () => {
   const route = useRoute<SwipeScreenRouteProp>();
   const navigation = useNavigation<SwipeScreenNavigationProp>();
-  
+  const { user } = useAuth();
+
+  const {
+    currentSession,
+    currentRecipe,
+    participants,
+    isHost,
+    isSwiping,
+    swipeRight,
+    swipeLeft,
+    fetchNextRecipe,
+    leaveSession,
+    getSessionStats,
+  } = useSession();
+
   // Get sessionId with a safe default
   const sessionId = route.params?.sessionId;
-  
-  // Handle missing sessionId
+
+  // Animation values
+  const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const rotate = useRef(new Animated.Value(0)).current;
+
+  // State
+  const [showSessionInfo, setShowSessionInfo] = useState(false);
+
+  // Handle missing sessionId or session
   useEffect(() => {
     if (!sessionId) {
       console.warn('No sessionId provided, navigating back');
       navigation.goBack();
+      return;
     }
-  }, [sessionId, navigation]);
-  
-  // Early return if no sessionId
-  if (!sessionId) {
-    return null;
+
+    // For solo sessions, we don't need session context
+    if (sessionId === 'solo-session') {
+      return;
+    }
+
+    // For multi-user sessions, check if we have a valid session
+    if (!currentSession) {
+      Alert.alert(
+        'Session Not Found',
+        'Unable to find your session. Please try joining again.',
+        [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+      );
+      return;
+    }
+
+    // Check if session is active
+    if (!currentSession.active && sessionId !== 'solo-session') {
+      Alert.alert(
+        'Session Not Active',
+        'This session hasn\'t been started yet.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+      return;
+    }
+  }, [sessionId, currentSession, navigation]);
+
+  // Early return if no sessionId or recipe
+  if (!sessionId || !currentRecipe) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading recipes...</Text>
+      </View>
+    );
   }
-  
+
+  const handleSwipeRight = async () => {
+    if (isSwiping) return;
+
+    if (sessionId === 'solo-session') {
+      // Solo mode - just move to next recipe
+      handleNextRecipe();
+      return;
+    }
+
+    const isMatch = await swipeRight(currentRecipe.id);
+
+    if (isMatch) {
+      navigation.navigate('Match', { recipe: currentRecipe });
+    } else {
+      handleNextRecipe();
+    }
+  };
+
+  const handleSwipeLeft = () => {
+    if (isSwiping) return;
+
+    if (sessionId !== 'solo-session') {
+      swipeLeft(currentRecipe.id);
+    }
+
+    handleNextRecipe();
+  };
+
+  const handleNextRecipe = () => {
+    // Animate card off screen first
+    Animated.timing(translateX, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      fetchNextRecipe();
+    });
+  };
+
+  const onGestureEvent = Animated.event(
+    [{ nativeEvent: { translationX: translateX, translationY: translateY } }],
+    { useNativeDriver: true }
+  );
+
+  const onHandlerStateChange = (event: any) => {
+    if (event.nativeEvent.state === State.END) {
+      const { translationX } = event.nativeEvent;
+
+      if (Math.abs(translationX) > SWIPE_THRESHOLD) {
+        // Animate card off screen
+        Animated.parallel([
+          Animated.timing(translateX, {
+            toValue: translationX > 0 ? width : -width,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rotate, {
+            toValue: translationX > 0 ? 1 : -1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          if (translationX > 0) {
+            handleSwipeRight();
+          } else {
+            handleSwipeLeft();
+          }
+
+          // Reset animations
+          translateX.setValue(0);
+          translateY.setValue(0);
+          rotate.setValue(0);
+        });
+      } else {
+        // Snap back to center
+        Animated.parallel([
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }),
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+          }),
+          Animated.spring(rotate, {
+            toValue: 0,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    }
+  };
+
+  const handleLeaveSession = () => {
+    Alert.alert(
+      'Leave Session',
+      'Are you sure you want to leave this session?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: () => {
+            leaveSession();
+            navigation.navigate('Home');
+          },
+        },
+      ]
+    );
+  };
+
+  const rotateInterpolate = rotate.interpolate({
+    inputRange: [-1, 0, 1],
+    outputRange: ['-10deg', '0deg', '10deg'],
+  });
+
+  const SessionInfoBar = () => {
+    if (sessionId === 'solo-session') {
+      return (
+        <View style={styles.sessionBar}>
+          <Text style={styles.sessionTitle}>Solo Mode</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+            <Text style={styles.leaveButton}>Exit</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (!currentSession) return null;
+
+    const stats = getSessionStats();
+
+    return (
+      <View style={styles.sessionBar}>
+        <TouchableOpacity
+          style={styles.sessionInfo}
+          onPress={() => setShowSessionInfo(!showSessionInfo)}
+        >
+          <Text style={styles.sessionTitle}>{currentSession.sessionCode}</Text>
+          <Text style={styles.sessionSubtitle}>
+            {stats.participants} participants • {stats.matches} matches
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleLeaveSession}>
+          <Text style={styles.leaveButton}>Leave</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const ParticipantsList = () => {
+    if (sessionId === 'solo-session' || !showSessionInfo || !currentSession) {
+      return null;
+    }
+
+    return (
+      <View style={styles.participantsOverlay}>
+        <Text style={styles.participantsTitle}>Session Participants</Text>
+        {participants.map((participant, index) => (
+          <View key={participant.id} style={styles.participantRow}>
+            <View style={styles.participantAvatar}>
+              <Text style={styles.participantAvatarText}>
+                {participant.user.name.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.participantInfo}>
+              <Text style={styles.participantName}>
+                {participant.user.name}
+                {participant.id === currentSession.hostId && ' (Host)'}
+                {participant.id === user?.id && ' (You)'}
+              </Text>
+              <Text style={styles.participantStats}>
+                {participant.currentSwipeCount} swipes • {participant.likes.length} likes
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [recipes, setRecipes] = useState(MOCK_RECIPES);
   const translateX = useRef(new Animated.Value(0)).current;
@@ -111,7 +279,7 @@ const SwipeScreen = () => {
   const onHandlerStateChange = (event: any) => {
     if (event.nativeEvent.oldState === State.ACTIVE) {
       const { translationX } = event.nativeEvent;
-      
+
       if (translationX > SWIPE_THRESHOLD) {
         // Swiped right (like)
         handleSwipe('right');
@@ -130,7 +298,7 @@ const SwipeScreen = () => {
 
   const handleSwipe = (direction: 'left' | 'right') => {
     const newX = direction === 'right' ? width * 1.5 : -width * 1.5;
-    
+
     Animated.timing(translateX, {
       toValue: newX,
       duration: 300,
@@ -141,7 +309,7 @@ const SwipeScreen = () => {
         // In a real app, this would communicate with your backend
         console.log('Liked:', recipes[currentIndex].title);
       }
-      
+
       // Move to next card or reset if at the end
       if (currentIndex < recipes.length - 1) {
         setCurrentIndex(currentIndex + 1);
@@ -221,15 +389,15 @@ const SwipeScreen = () => {
       </View>
 
       <View style={styles.buttonsContainer}>
-        <TouchableOpacity 
-          style={[styles.button, styles.dislikeButton]} 
+        <TouchableOpacity
+          style={[styles.button, styles.dislikeButton]}
           onPress={() => handleSwipe('left')}
         >
           <Text style={styles.buttonText}>👎</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={[styles.button, styles.likeButton]} 
+        <TouchableOpacity
+          style={[styles.button, styles.likeButton]}
           onPress={() => handleSwipe('right')}
         >
           <Text style={styles.buttonText}>👍</Text>

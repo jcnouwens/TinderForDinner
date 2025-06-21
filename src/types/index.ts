@@ -19,24 +19,39 @@ export interface User {
   avatar?: string;
 }
 
+export interface SessionParticipant {
+  id: string;
+  user: User;
+  joinedAt: Date;
+  isActive: boolean;
+  currentSwipeCount: number;
+  likes: string[]; // Recipe IDs they liked
+  dislikes: string[]; // Recipe IDs they disliked
+}
+
 export interface SwipeSession {
   id: string;
-  userIds: string[];
-  matches: string[]; // Array of recipe IDs that were matched
+  hostId: string;
+  participants: SessionParticipant[];
+  matches: string[]; // Array of recipe IDs that were matched by all participants
   createdAt: Date;
   active: boolean;
+  maxParticipants: number;
+  requiresAllToMatch: boolean; // If true, all participants must like a recipe for it to be a match
+  sessionCode: string; // Human-readable code for joining
 }
 
 // Navigation Types
 export type RootStackParamList = {
   // Auth Stack
   Auth: undefined;
-  
+
   // Main App Stack
   MainTabs: undefined;
-  
+
   // Individual Screens
   Home: undefined;
+  SessionLobby: { sessionId: string; isHost: boolean };
   Swipe: { sessionId: string };
   Match: { recipe: Recipe };
   RecipeDetail: { recipe: Recipe };
