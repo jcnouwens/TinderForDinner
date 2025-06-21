@@ -52,14 +52,35 @@ const SessionLobbyScreen = () => {
 
     const handleShareSession = async () => {
         if (currentSession?.sessionCode) {
+            console.log('Attempting to share session code:', currentSession.sessionCode);
             try {
-                await Share.share({
+                const result = await Share.share({
                     message: `Join my Tinder for Dinner session! Use code: ${currentSession.sessionCode}`,
                     title: 'Join my cooking session',
                 });
+                console.log('Share result:', result);
+
+                // If sharing completed successfully, show confirmation
+                if (result.action === Share.sharedAction) {
+                    Alert.alert('Shared!', 'Session code has been shared successfully');
+                } else if (result.action === Share.dismissedAction) {
+                    // User dismissed the share dialog
+                    console.log('Share dialog was dismissed');
+                }
             } catch (error) {
                 console.error('Error sharing:', error);
+                // Fallback: show the session code in an alert
+                Alert.alert(
+                    'Share Session Code',
+                    `Share this code with others:\n\n${currentSession.sessionCode}\n\nThey can enter this code on the home screen to join your session.`,
+                    [
+                        { text: 'Copy Code', onPress: handleCopySessionCode },
+                        { text: 'OK', style: 'default' }
+                    ]
+                );
             }
+        } else {
+            Alert.alert('Error', 'No session code available to share');
         }
     };
 
@@ -119,6 +140,19 @@ const SessionLobbyScreen = () => {
                 },
             ]
         );
+    };
+
+    const handleShowSessionCode = () => {
+        if (currentSession?.sessionCode) {
+            Alert.alert(
+                'Session Code',
+                `Share this code with others to let them join:\n\n${currentSession.sessionCode}\n\nThey can enter this code on the home screen.`,
+                [
+                    { text: 'Copy Code', onPress: handleCopySessionCode },
+                    { text: 'Close', style: 'default' }
+                ]
+            );
+        }
     };
 
     if (isLoading) {
@@ -197,9 +231,14 @@ const SessionLobbyScreen = () => {
                 </View>
 
                 {isHost && (
-                    <TouchableOpacity style={styles.shareButton} onPress={handleShareSession}>
-                        <Text style={styles.shareButtonText}>Share Session</Text>
-                    </TouchableOpacity>
+                    <View style={styles.shareButtonsContainer}>
+                        <TouchableOpacity style={styles.shareButton} onPress={handleShareSession}>
+                            <Text style={styles.shareButtonText}>Share Session</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.showCodeButton} onPress={handleShowSessionCode}>
+                            <Text style={styles.showCodeButtonText}>Show Code</Text>
+                        </TouchableOpacity>
+                    </View>
                 )}
             </View>
 
@@ -338,15 +377,36 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     shareButton: {
-        backgroundColor: '#4ecdc4',
+        backgroundColor: '#28a745',
         paddingVertical: 12,
+        paddingHorizontal: 20,
         borderRadius: 8,
         alignItems: 'center',
+        flex: 1,
+        marginRight: 5,
     },
     shareButtonText: {
         color: '#fff',
+        fontSize: 14,
         fontWeight: '600',
-        fontSize: 16,
+    },
+    shareButtonsContainer: {
+        flexDirection: 'row',
+        marginTop: 10,
+    },
+    showCodeButton: {
+        backgroundColor: '#6c757d',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        alignItems: 'center',
+        flex: 1,
+        marginLeft: 5,
+    },
+    showCodeButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
     },
     participantsSection: {
         flex: 1,

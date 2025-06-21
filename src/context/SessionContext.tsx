@@ -1,10 +1,12 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Alert } from 'react-native';
 import { Recipe, SwipeSession, SessionParticipant, User } from '../types';
+import { SupabaseService } from '../services/SupabaseService';
 
 // Define the shape of our session context
 type SessionContextData = {
   currentSession: SwipeSession | null;
+  currentUser: User | null;
   currentRecipe: Recipe | null;
   isLoading: boolean;
   isSwiping: boolean;
@@ -12,11 +14,11 @@ type SessionContextData = {
   isHost: boolean;
   createSession: (user: User, maxParticipants?: number, requiresAllToMatch?: boolean) => Promise<string>; // Returns session code
   joinSession: (sessionCode: string, user: User) => Promise<boolean>;
-  leaveSession: () => void;
+  leaveSession: () => Promise<void>;
   removeParticipant: (participantId: string) => Promise<boolean>; // Host only
   startSession: () => Promise<boolean>; // Host only - start swiping
   swipeRight: (recipeId: string) => Promise<boolean>; // Returns true if it's a match
-  swipeLeft: (recipeId: string) => void;
+  swipeLeft: (recipeId: string) => Promise<void>;
   fetchNextRecipe: () => Promise<void>;
   getSessionStats: () => { totalSwipes: number; matches: number; participants: number };
 };
@@ -43,6 +45,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
   const [currentRecipeIndex, setCurrentRecipeIndex] = useState(0);
   const [participants, setParticipants] = useState<SessionParticipant[]>([]);
   const [isHost, setIsHost] = useState(false);
+  const [supabaseChannel, setSupabaseChannel] = useState<any>(null);
 
   // Mock data - in a real app, this would come from an API
   useEffect(() => {
@@ -133,45 +136,39 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
     try {
       setIsLoading(true);
 
-      // In a real app, you would call your backend API to create a session
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Generate session ID and code
-      const sessionId = `sess_${Math.random().toString(36).substr(2, 9)}`;
+      // Generate session code
       const sessionCode = generateSessionCode();
 
-      // Create host participant
-      const hostParticipant: SessionParticipant = {
-        id: user.id,
+      // Create session using Supabase
+      const session = await SupabaseService.createSession(
         user,
-        joinedAt: new Date(),
-        isActive: true,
-        currentSwipeCount: 0,
-        likes: [],
-        dislikes: []
-      };
-
-      const newSession: SwipeSession = {
-        id: sessionId,
-        hostId: user.id,
-        participants: [hostParticipant],
-        matches: [],
-        active: false, // Not active until host starts it
-        createdAt: new Date(),
+        sessionCode,
         maxParticipants,
-        requiresAllToMatch,
-        sessionCode
-      };
+        requiresAllToMatch
+      );
 
-      setCurrentSession(newSession);
-      setParticipants([hostParticipant]);
+      if (!session) {
+        throw new Error('Failed to create session');
+      }
+
+      // Set up real-time subscription
+      const channel = SupabaseService.subscribeToSession(session.id, (updatedSession) => {
+        if (updatedSession) {
+          setCurrentSession(updatedSession);
+          setParticipants(updatedSession.participants);
+        }
+      });
+      setSupabaseChannel(channel);
+
+      setCurrentSession(session);
+      setParticipants(session.participants);
       setIsHost(true);
 
       return sessionCode;
-
     } catch (error) {
       console.error('Error creating session:', error);
-      throw new Error('Failed to create a new session. Please try again.');
+      Alert.alert('Error', 'Failed to create session. Please try again.');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -182,63 +179,66 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
     try {
       setIsLoading(true);
 
-      // In a real app, you would validate the session code with your backend
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Join session using Supabase
+      const session = await SupabaseService.joinSession(sessionCode, user);
 
-      // Check if session exists and has space (mock implementation)
-      // In a real app, this would be handled by the backend
-      const sessionExists = sessionCode.includes('-'); // Basic validation
-
-      if (!sessionExists) {
-        throw new Error('Invalid session code');
+      if (!session) {
+        Alert.alert('Error', 'Session not found or is full');
+        return false;
       }
 
-      // Create participant
-      const newParticipant: SessionParticipant = {
-        id: user.id,
-        user,
-        joinedAt: new Date(),
-        isActive: true,
-        currentSwipeCount: 0,
-        likes: [],
-        dislikes: []
-      };
+      // Set up real-time subscription
+      const channel = SupabaseService.subscribeToSession(session.id, (updatedSession) => {
+        if (updatedSession) {
+          setCurrentSession(updatedSession);
+          setParticipants(updatedSession.participants);
+        }
+      });
+      setSupabaseChannel(channel);
 
-      // Mock existing session - in a real app, this would come from the backend
-      const existingSession: SwipeSession = {
-        id: `sess_${sessionCode.replace(/-/g, '').toLowerCase()}`,
-        hostId: 'host-user-id', // This would come from the backend
-        participants: [newParticipant], // In reality, this would include existing participants
-        matches: [],
-        active: false,
-        createdAt: new Date(),
-        maxParticipants: 4,
-        requiresAllToMatch: true,
-        sessionCode
-      };
-
-      setCurrentSession(existingSession);
-      setParticipants([newParticipant]);
-      setIsHost(false);
+      setCurrentSession(session);
+      setParticipants(session.participants);
+      setIsHost(session.hostId === user.id);
 
       return true;
-
     } catch (error) {
       console.error('Error joining session:', error);
-      throw new Error('Failed to join the session. Please check the session code and try again.');
+      Alert.alert('Error', 'Failed to join session. Please check the code and try again.');
+      return false;
     } finally {
       setIsLoading(false);
     }
   };
 
   // Leave the current session
-  const leaveSession = () => {
-    // In a real app, you would notify the backend that the user left
-    setCurrentSession(null);
-    setParticipants([]);
-    setIsHost(false);
-    setCurrentRecipe(recipes[0] || null);
-    setCurrentRecipeIndex(0);
+  const leaveSession = async () => {
+    if (!currentSession) return;
+
+    try {
+      setIsLoading(true);
+
+      // Unsubscribe from real-time updates
+      if (supabaseChannel) {
+        SupabaseService.unsubscribeFromSession(supabaseChannel);
+        setSupabaseChannel(null);
+      }
+
+      // Leave session using Supabase
+      await SupabaseService.leaveSession(currentSession.id);
+
+      // Reset local state
+      setCurrentSession(null);
+      setParticipants([]);
+      setIsHost(false);
+      setCurrentRecipe(recipes[0] || null);
+      setCurrentRecipeIndex(0);
+
+    } catch (error) {
+      console.error('Error leaving session:', error);
+      Alert.alert('Error', 'Failed to leave session properly');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Remove a participant (host only)
