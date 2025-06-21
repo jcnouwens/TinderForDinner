@@ -22,6 +22,10 @@ const MOCK_RECIPES = [
         readyInMinutes: 25,
         servings: 2,
         sourceUrl: 'https://spoonacular.com/creamy-garlic-pasta-716429',
+        ingredients: ['8 oz pasta', '4 cloves garlic', '2 tbsp butter', '1 cup heavy cream', '1/2 cup parmesan'],
+        instructions: ['Cook pasta', 'Sauté garlic', 'Add cream', 'Toss with pasta'],
+        summary: 'A delicious creamy garlic pasta perfect for dinner.',
+        diets: ['vegetarian'],
     },
     {
         id: '2',
@@ -30,6 +34,10 @@ const MOCK_RECIPES = [
         readyInMinutes: 15,
         servings: 2,
         sourceUrl: 'https://spoonacular.com/avocado-toast-with-egg-716300',
+        ingredients: ['2 slices bread', '1 avocado', '2 eggs', 'salt', 'pepper'],
+        instructions: ['Toast bread', 'Mash avocado', 'Fry eggs', 'Assemble'],
+        summary: 'Healthy and delicious avocado toast topped with a fried egg.',
+        diets: ['vegetarian'],
     },
     {
         id: '3',
@@ -38,6 +46,10 @@ const MOCK_RECIPES = [
         readyInMinutes: 40,
         servings: 4,
         sourceUrl: 'https://spoonacular.com/chicken-tikka-masala-715594',
+        ingredients: ['1 lb chicken', '1 can coconut milk', '2 tbsp curry paste', 'onion', 'garlic'],
+        instructions: ['Marinate chicken', 'Cook chicken', 'Make sauce', 'Combine'],
+        summary: 'Authentic and flavorful chicken tikka masala with aromatic spices.',
+        diets: ['gluten-free'],
     },
     {
         id: '4',
@@ -46,6 +58,10 @@ const MOCK_RECIPES = [
         readyInMinutes: 20,
         servings: 2,
         sourceUrl: 'https://spoonacular.com/vegetable-stir-fry-716304',
+        ingredients: ['mixed vegetables', 'soy sauce', 'garlic', 'ginger', 'oil'],
+        instructions: ['Heat oil', 'Add garlic and ginger', 'Stir fry vegetables', 'Add sauce'],
+        summary: 'Quick and healthy vegetable stir fry with Asian flavors.',
+        diets: ['vegan', 'vegetarian'],
     },
 ];
 
