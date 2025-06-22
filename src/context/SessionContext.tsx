@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { Alert } from 'react-native';
 import { Recipe, SwipeSession, SessionParticipant, User } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
+import { MockSupabaseService } from '../services/MockSupabaseService';
 
 // Define the shape of our session context
 type SessionContextData = {
@@ -126,9 +127,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
     const number = Math.floor(Math.random() * 99) + 1;
 
     return `${adjective}-${food}-${number}`;
-  };
-
-  // Create a new session
+  };  // Create a new session
   const createSession = async (
     user: User,
     maxParticipants: number = 4,
@@ -136,29 +135,67 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
   ): Promise<string> => {
     try {
       setIsLoading(true);
+      console.log('🚀 Starting session creation process...');
 
       // Generate session code
       const sessionCode = generateSessionCode();
+      console.log('🎯 Generated session code:', sessionCode);
 
-      // Create session using Supabase
-      const session = await SupabaseService.createSession(
-        user,
-        sessionCode,
-        maxParticipants,
-        requiresAllToMatch
-      );
+      // Choose between real and mock service based on connectivity
+      let session: SwipeSession | null = null;
 
-      if (!session) {
-        throw new Error('Failed to create session');
+      try {
+        // Try real Supabase first
+        console.log('🔄 Attempting to use real Supabase service...');
+        session = await SupabaseService.createSession(
+          user,
+          sessionCode,
+          maxParticipants,
+          requiresAllToMatch
+        );
+      } catch (error) {
+        // If network fails, fall back to mock service
+        console.warn('⚠️ Real Supabase failed, falling back to mock service');
+        console.log('🔧 Using mock service for development...');
+
+        Alert.alert(
+          'Offline Mode',
+          'Network connection failed. Using offline mode for development. Sessions will not persist.',
+          [{ text: 'OK' }]
+        );
+
+        session = await MockSupabaseService.createSession(
+          user,
+          sessionCode,
+          maxParticipants,
+          requiresAllToMatch
+        );
       }
 
-      // Set up real-time subscription
-      const channel = SupabaseService.subscribeToSession(session.id, (updatedSession) => {
-        if (updatedSession) {
-          setCurrentSession(updatedSession);
-          setParticipants(updatedSession.participants);
-        }
-      });
+      if (!session) {
+        throw new Error('Failed to create session - received null response from both services');
+      }
+
+      console.log('✅ Session created successfully:', session);
+
+      // Set up real-time subscription (only for real Supabase)
+      let channel = null;
+      if (session.id.startsWith('mock-')) {
+        console.log('🔧 Mock session - skipping real-time subscription');
+        channel = MockSupabaseService.subscribeToSession(session.id, (updatedSession) => {
+          if (updatedSession) {
+            setCurrentSession(updatedSession);
+            setParticipants(updatedSession.participants);
+          }
+        });
+      } else {
+        channel = SupabaseService.subscribeToSession(session.id, (updatedSession) => {
+          if (updatedSession) {
+            setCurrentSession(updatedSession);
+            setParticipants(updatedSession.participants);
+          }
+        });
+      }
       setSupabaseChannel(channel);
 
       setCurrentSession(session);
@@ -168,8 +205,21 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
 
       return sessionCode;
     } catch (error) {
-      console.error('Error creating session:', error);
-      Alert.alert('Error', 'Failed to create session. Please try again.');
+      console.error('❌ Error creating session:', error);
+
+      let errorMessage = 'Failed to create session. Please try again.';
+
+      if (error instanceof Error) {
+        if (error.message.includes('Network request failed')) {
+          errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+        } else if (error.message.includes('Connection failed')) {
+          errorMessage = 'Unable to connect to the server. Please try again later.';
+        } else {
+          errorMessage = `Session creation failed: ${error.message}`;
+        }
+      }
+
+      Alert.alert('Error', errorMessage);
       throw error;
     } finally {
       setIsLoading(false);
@@ -255,8 +305,8 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
       setIsLoading(true);
 
       const success = await SupabaseService.removeParticipant(
-        currentSession.id, 
-        participantId, 
+        currentSession.id,
+        participantId,
         currentUser.id
       );
 

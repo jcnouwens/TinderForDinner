@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Modal, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Modal, Switch, ScrollView } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
 import { useSession } from '../context/SessionContext';
 import { useAuth } from '../context/AuthContext';
+import SupabaseTestComponent from '../components/SupabaseTestComponent';
+import { runAllDebugTests } from '../utils/debugSupabase';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -19,13 +21,19 @@ const HomeScreen = () => {
   const { user } = useAuth();
 
   const handleCreateSession = async () => {
+    console.log('🚀 handleCreateSession called');
+    console.log('User:', user);
+
     if (!user) {
+      console.log('❌ No user found, showing alert');
       Alert.alert('Error', 'Please sign in to create a session');
       return;
     }
 
     try {
+      console.log('🔄 Calling createSession...');
       const sessionCode = await createSession(user, maxParticipants, requiresAllToMatch);
+      console.log('✅ Session created with code:', sessionCode);
       setShowCreateModal(false);
 
       Alert.alert(
@@ -46,7 +54,7 @@ const HomeScreen = () => {
         ]
       );
     } catch (error) {
-      console.error('Create session error:', error);
+      console.error('❌ Create session error:', error);
       Alert.alert('Error', 'Unable to create session. Please try again.');
     }
   };
@@ -82,6 +90,21 @@ const HomeScreen = () => {
   const handleStartSolo = () => {
     // Navigate directly to swipe screen for solo mode
     navigation.navigate('Swipe', { sessionId: 'solo-session' });
+  };
+
+  const handleDebugConnection = async () => {
+    console.log('🔧 Running debug tests...');
+    try {
+      const result = await runAllDebugTests();
+      Alert.alert(
+        'Debug Test Results',
+        result ? 'All tests passed! Connection is working.' : 'Some tests failed. Check console logs for details.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Debug test error:', error);
+      Alert.alert('Debug Error', 'Failed to run debug tests. Check console.');
+    }
   };
 
   const CreateSessionModal = () => (
@@ -165,65 +188,91 @@ const HomeScreen = () => {
         <Text style={styles.subtitle}>Swipe, match, and cook together!</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Start a New Session</Text>
-        <Text style={styles.cardDescription}>
-          Create a multiplayer session and invite friends to join you in finding the perfect meal.
-        </Text>
-        <TouchableOpacity
-          style={[styles.button, styles.primaryButton]}
-          onPress={() => setShowCreateModal(true)}
-          disabled={isLoading}
-        >
-          <Text style={styles.buttonText}>
-            {isLoading ? 'Creating...' : 'Create Multi-Player Session'}
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {/* Temporary Supabase Test Component - Remove after testing */}
+        <SupabaseTestComponent />
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Start a New Session</Text>
+          <Text style={styles.cardDescription}>
+            Create a multiplayer session and invite friends to join you in finding the perfect meal.
           </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, styles.primaryButton]}
+            onPress={() => setShowCreateModal(true)}
+            disabled={isLoading}
+          >
+            <Text style={styles.buttonText}>
+              {isLoading ? 'Creating...' : 'Create Multi-Player Session'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.secondaryButton, styles.createButton]}
+            onPress={handleStartSolo}
+          >
+            <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+              Start Solo Session
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.card, styles.joinCard]}>
+          <Text style={styles.cardTitle}>Join a Session</Text>
+          <Text style={styles.cardDescription}>
+            Already have a session code? Enter it below to join your friend's swipe session.
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter session code (e.g., HAPPY-PASTA-42)"
+            value={sessionCode}
+            onChangeText={setSessionCode}
+            autoCapitalize="characters"
+            placeholderTextColor="#999"
+          />
+          <TouchableOpacity
+            style={[
+              styles.button,
+              styles.secondaryButton,
+              (!sessionCode.trim() || isLoading) && styles.disabledButton
+            ]}
+            onPress={handleJoinSession}
+            disabled={!sessionCode.trim() || isLoading}
+          >
+            <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+              {isLoading ? 'Joining...' : 'Join Session'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <SupabaseTestComponent />
+
+        {/* Debug button - remove after fixing connection issues */}
+        <View style={[styles.card, { backgroundColor: '#fff3cd', borderColor: '#ffeaa7' }]}>
+          <Text style={styles.cardTitle}>🔧 Debug Connection</Text>
+          <Text style={styles.cardDescription}>
+            Current user: {user ? `${user.name} (${user.id})` : 'Not signed in'}
+          </Text>
+          <Text style={styles.cardDescription}>
+            If you're experiencing connection issues, tap this button to run diagnostic tests.
+          </Text>
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: '#fdcb6e' }]}
+            onPress={handleDebugConnection}
+          >
+            <Text style={[styles.buttonText, { color: '#2d3436' }]}>
+              Run Debug Tests
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
-          style={[styles.button, styles.secondaryButton, styles.createButton]}
-          onPress={handleStartSolo}
+          style={styles.profileButton}
+          onPress={() => navigation.navigate('Profile')}
         >
-          <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-            Start Solo Session
-          </Text>
+          <Text style={styles.profileButtonText}>Profile</Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={[styles.card, styles.joinCard]}>
-        <Text style={styles.cardTitle}>Join a Session</Text>
-        <Text style={styles.cardDescription}>
-          Already have a session code? Enter it below to join your friend's swipe session.
-        </Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter session code (e.g., HAPPY-PASTA-42)"
-          value={sessionCode}
-          onChangeText={setSessionCode}
-          autoCapitalize="characters"
-          placeholderTextColor="#999"
-        />
-        <TouchableOpacity
-          style={[
-            styles.button,
-            styles.secondaryButton,
-            (!sessionCode.trim() || isLoading) && styles.disabledButton
-          ]}
-          onPress={handleJoinSession}
-          disabled={!sessionCode.trim() || isLoading}
-        >
-          <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-            {isLoading ? 'Joining...' : 'Join Session'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity
-        style={styles.profileButton}
-        onPress={() => navigation.navigate('Profile')}
-      >
-        <Text style={styles.profileButtonText}>Profile</Text>
-      </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 };
@@ -393,6 +442,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 20,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
 });
 

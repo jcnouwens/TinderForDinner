@@ -5,7 +5,7 @@ This document explains how to set up and use Supabase for the "Tinder for Dinner
 ## Prerequisites
 
 1. A Supabase account (free tier is sufficient for development)
-2. A Supabase project created at https://app.supabase.com
+2. A Supabase project created at <https://app.supabase.com>
 
 ## Setup Instructions
 
@@ -16,6 +16,7 @@ This document explains how to set up and use Supabase for the "Tinder for Dinner
 3. Run the SQL commands from `database_setup.sql` to create the required tables, policies, and functions
 
 The database schema includes:
+
 - `sessions` - Main session table
 - `session_participants` - Users participating in sessions  
 - `session_swipes` - Individual swipe records
@@ -34,6 +35,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 ### 3. Row Level Security (RLS)
 
 The database setup includes RLS policies that:
+
 - Allow users to read/write their own session data
 - Restrict session management to hosts
 - Enable real-time subscriptions for session participants
@@ -41,6 +43,7 @@ The database setup includes RLS policies that:
 ## Features Implemented
 
 ### ✅ Session Management
+
 - **Create Session**: Host creates a session with customizable settings
 - **Join Session**: Users join via session code
 - **Leave Session**: Participants can leave at any time
@@ -48,16 +51,19 @@ The database setup includes RLS policies that:
 - **Start Session**: Host initiates the swiping phase
 
 ### ✅ Real-time Updates
+
 - Live participant updates when users join/leave
 - Real-time match notifications across all devices
 - Session state synchronization
 
 ### ✅ Swiping & Matching
+
 - Record likes/dislikes for each participant
 - Configurable matching rules (all must match vs majority)
 - Automatic match detection and recording
 
 ### ✅ Multi-device Support
+
 - Multiple users can join the same session
 - Real-time synchronization across all devices
 - Persistent session state
@@ -101,6 +107,7 @@ await swipeLeft('recipe-456');
 ### Real-time Session Updates
 
 The `SessionContext` automatically subscribes to real-time updates when joining a session. All participants will receive updates when:
+
 - New participants join
 - Participants leave
 - Matches are found
@@ -169,6 +176,7 @@ For production deployment, consider:
 ## API Reference
 
 See `src/services/SupabaseService.ts` for the complete API including:
+
 - `createSession()`
 - `joinSession()`
 - `leaveSession()`

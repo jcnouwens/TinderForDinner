@@ -5,6 +5,26 @@ export class SupabaseService {
     // Session Management
     static async createSession(hostUser: User, sessionCode: string, maxParticipants: number = 4, requiresAllToMatch: boolean = false): Promise<SwipeSession | null> {
         try {
+            console.log('🔧 Creating session with:', {
+                sessionCode,
+                hostUserId: hostUser.id,
+                maxParticipants,
+                requiresAllToMatch
+            });
+
+            // First, let's test if we can connect to Supabase at all
+            const { data: testData, error: testError } = await supabase
+                .from('sessions')
+                .select('count')
+                .limit(1);
+
+            if (testError) {
+                console.error('❌ Connection test failed before creating session:', testError);
+                throw new Error(`Connection failed: ${testError.message}`);
+            }
+
+            console.log('✅ Connection test passed, proceeding with session creation');
+
             // Create the session
             const { data: sessionData, error: sessionError } = await supabase
                 .from('sessions')
@@ -19,9 +39,11 @@ export class SupabaseService {
                 .single();
 
             if (sessionError) {
-                console.error('Error creating session:', sessionError);
-                return null;
+                console.error('❌ Error creating session:', sessionError);
+                throw new Error(`Session creation failed: ${sessionError.message}`);
             }
+
+            console.log('✅ Session created successfully:', sessionData);
 
             // Add the host as a participant
             const { error: participantError } = await supabase
@@ -36,9 +58,11 @@ export class SupabaseService {
                 });
 
             if (participantError) {
-                console.error('Error adding host as participant:', participantError);
-                return null;
+                console.error('❌ Error adding host as participant:', participantError);
+                throw new Error(`Failed to add host as participant: ${participantError.message}`);
             }
+
+            console.log('✅ Host added as participant successfully');
 
             return {
                 id: sessionData.id,
@@ -52,8 +76,24 @@ export class SupabaseService {
                 sessionCode: sessionData.session_code,
             };
         } catch (error) {
-            console.error('Error in createSession:', error);
-            return null;
+            console.error('❌ Error in createSession:', error);
+
+            // More detailed error logging
+            if (error instanceof Error) {
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+            }
+
+            // Check if it's a network error
+            if (error instanceof TypeError && error.message.includes('Network request failed')) {
+                console.error('🌐 Network connectivity issue detected');
+                console.error('Please check:');
+                console.error('1. Internet connection');
+                console.error('2. Supabase URL and credentials');
+                console.error('3. Firewall/proxy settings');
+            }
+
+            throw error; // Re-throw to be handled by the calling function
         }
     }
 
