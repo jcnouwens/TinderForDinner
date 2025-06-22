@@ -8,6 +8,8 @@ import { useSession } from '../context/SessionContext';
 import { useAuth } from '../context/AuthContext';
 import SupabaseTestComponent from '../components/SupabaseTestComponent';
 import { runAllDebugTests } from '../utils/debugSupabase';
+import { DebugSupabaseService } from '../services/DebugSupabaseService';
+import { testIOSSimulatorConnection, testSupabaseConnection } from '../services/supabase';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -17,7 +19,7 @@ const HomeScreen = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState(4);
   const [requiresAllToMatch, setRequiresAllToMatch] = useState(true);
-  const { createSession, joinSession, isLoading } = useSession();
+  const { createSession, joinSession, forceRealSupabaseSession, isLoading } = useSession();
   const { user } = useAuth();
 
   const handleCreateSession = async () => {
@@ -105,6 +107,107 @@ const HomeScreen = () => {
       console.error('Debug test error:', error);
       Alert.alert('Debug Error', 'Failed to run debug tests. Check console.');
     }
+  };
+
+  const handleForceRealSupabase = async () => {
+    if (!user) {
+      Alert.alert('Error', 'Please sign in first');
+      return;
+    }
+
+    Alert.alert(
+      'Force Real Supabase',
+      'This will attempt to create a session directly in Supabase database, bypassing fallbacks. This may fail in iOS simulator.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Force Create',
+          onPress: async () => {
+            try {
+              console.log('🚀 FORCING real Supabase session creation via context...');
+
+              const sessionCode = await forceRealSupabaseSession(user, 4, true);
+
+              console.log('✅ Successfully created real Supabase session with code:', sessionCode);
+
+              // Optionally navigate to the session lobby
+              Alert.alert(
+                'Navigate to Session?',
+                'Real Supabase session created successfully! Would you like to go to the session lobby?',
+                [
+                  { text: 'Stay Here', style: 'cancel' },
+                  {
+                    text: 'Go to Lobby',
+                    onPress: () => navigation.navigate('SessionLobby', {
+                      sessionId: sessionCode,
+                      isHost: true
+                    }),
+                  }
+                ]
+              );
+
+            } catch (error) {
+              console.error('❌ Force real Supabase error:', error);
+              // The error alert is already shown in the forceRealSupabaseSession function
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleNetworkTest = async () => {
+    Alert.alert(
+      'Network Connectivity Test',
+      'This will test your network connection and Supabase reachability. Useful for diagnosing iOS simulator network issues.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Run Test',
+          onPress: async () => {
+            try {
+              console.log('🔍 Starting comprehensive network test...');
+
+              // Test 1: iOS Simulator network test
+              const iosTestResult = await testIOSSimulatorConnection();
+
+              // Test 2: Supabase connection test
+              const supabaseTestResult = await testSupabaseConnection();
+
+              // Test 3: Debug service test
+              const debugTestResult = await runAllDebugTests();
+
+              const results = [
+                `iOS Network: ${iosTestResult ? '✅ Pass' : '❌ Fail'}`,
+                `Supabase: ${supabaseTestResult ? '✅ Pass' : '❌ Fail'}`,
+                `Debug Tests: ${debugTestResult ? '✅ Pass' : '❌ Fail'}`,
+              ];
+
+              const overallSuccess = iosTestResult || supabaseTestResult;
+
+              Alert.alert(
+                `Network Test ${overallSuccess ? 'Results' : 'Failed'}`,
+                `${results.join('\n')}\n\n${overallSuccess ?
+                  'Your network connection appears to be working! If you\'re still having issues, try testing on a real device.' :
+                  'Network connectivity issues detected. This is common in iOS simulator. Try:\n• Testing on a real device\n• Testing in web browser\n• Checking your network settings'
+                }`,
+                [
+                  { text: 'OK' },
+                  ...(overallSuccess ? [{
+                    text: 'Try Real Session',
+                    onPress: () => handleForceRealSupabase()
+                  }] : [])
+                ]
+              );
+
+            } catch (error) {
+              console.error('Network test error:', error);
+              Alert.alert('Test Error', 'Failed to run network tests. Check console for details.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const CreateSessionModal = () => (
@@ -262,6 +365,24 @@ const HomeScreen = () => {
           >
             <Text style={[styles.buttonText, { color: '#2d3436' }]}>
               Run Debug Tests
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: '#e17055', marginTop: 10 }]}
+            onPress={handleForceRealSupabase}
+          >
+            <Text style={[styles.buttonText, { color: '#ffffff' }]}>
+              🚀 Force Real Supabase
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: '#0984e3', marginTop: 10 }]}
+            onPress={handleNetworkTest}
+          >
+            <Text style={[styles.buttonText, { color: '#ffffff' }]}>
+              🌐 Test Network
             </Text>
           </TouchableOpacity>
         </View>

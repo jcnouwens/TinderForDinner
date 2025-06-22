@@ -12,18 +12,7 @@ export class SupabaseService {
                 requiresAllToMatch
             });
 
-            // First, let's test if we can connect to Supabase at all
-            const { data: testData, error: testError } = await supabase
-                .from('sessions')
-                .select('count')
-                .limit(1);
-
-            if (testError) {
-                console.error('❌ Connection test failed before creating session:', testError);
-                throw new Error(`Connection failed: ${testError.message}`);
-            }
-
-            console.log('✅ Connection test passed, proceeding with session creation');
+            console.log('🚀 Attempting direct session creation in Supabase...');
 
             // Create the session
             const { data: sessionData, error: sessionError } = await supabase
