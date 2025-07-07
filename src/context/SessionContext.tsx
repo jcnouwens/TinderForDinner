@@ -3,7 +3,6 @@ import { Alert } from 'react-native';
 import { Recipe, SwipeSession, SessionParticipant, User } from '../types';
 import { SupabaseService } from '../services/SupabaseService';
 import { MockSupabaseService } from '../services/MockSupabaseService';
-import { SimulatorSupabaseService } from '../services/SimulatorSupabaseService';
 
 // Define the shape of our session context
 type SessionContextData = {
@@ -15,7 +14,6 @@ type SessionContextData = {
   participants: SessionParticipant[];
   isHost: boolean;
   createSession: (user: User, maxParticipants?: number, requiresAllToMatch?: boolean) => Promise<string>; // Returns session code
-  forceRealSupabaseSession: (user: User, maxParticipants?: number, requiresAllToMatch?: boolean) => Promise<string>; // Force real Supabase
   joinSession: (sessionCode: string, user: User) => Promise<boolean>;
   leaveSession: () => Promise<void>;
   removeParticipant: (participantId: string) => Promise<boolean>; // Host only
@@ -147,35 +145,65 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
       let session: SwipeSession | null = null;
 
       try {
-        // Try enhanced Supabase service with retry logic first
-        console.log('🔄 Attempting enhanced Supabase service with retry logic...');
-        session = await SimulatorSupabaseService.createSessionWithRetry(
+        // Try real Supabase first
+        console.log('🔄 Attempting to use real Supabase service...');
+        session = await SupabaseService.createSession(
           user,
           sessionCode,
           maxParticipants,
-          requiresAllToMatch,
-          3 // Max 3 retries
+          requiresAllToMatch
         );
 
-        console.log('🎉 Enhanced Supabase session created successfully!');
+        console.log('🎉 Real Supabase session created successfully!');
 
       } catch (error) {
-        console.error('❌ Enhanced Supabase failed, trying standard service:', error);
+        console.error('❌ Real Supabase failed:', error);
 
-        try {
-          // Fallback to standard service
-          session = await SupabaseService.createSession(
-            user,
-            sessionCode,
-            maxParticipants,
-            requiresAllToMatch
-          );
-          console.log('🎉 Standard Supabase session created successfully!');
-        } catch (standardError) {
-          console.error('❌ Standard Supabase also failed:', standardError);
+        // Give user option to retry or use mock
+        Alert.alert(
+          'Connection Failed',
+          'Unable to connect to Supabase database. This is common in iOS simulator. Would you like to try again or use offline mode?',
+          [
+            {
+              text: 'Try Again',
+              onPress: async () => {
+                try {
+                  session = await SupabaseService.createSession(
+                    user,
+                    sessionCode,
+                    maxParticipants,
+                    requiresAllToMatch
+                  );
+                  console.log('🎉 Real Supabase session created on retry!');
+                } catch (retryError) {
+                  console.error('❌ Retry failed, using mock service');
+                  session = await MockSupabaseService.createSession(
+                    user,
+                    sessionCode,
+                    maxParticipants,
+                    requiresAllToMatch
+                  );
+                }
+              }
+            },
+            {
+              text: 'Use Offline Mode',
+              onPress: async () => {
+                console.log('🔧 User chose to use mock service for development...');
+                session = await MockSupabaseService.createSession(
+                  user,
+                  sessionCode,
+                  maxParticipants,
+                  requiresAllToMatch
+                );
+              }
+            }
+          ]
+        );
 
-          // Give user option to retry or use mock - create promise to wait for user choice
-          console.log('🔧 Both Supabase attempts failed, falling back to mock service for now...');
+        // If no session created yet, fall back to mock
+        if (!session) {
+          console.log('🔧 No user choice made, falling back to mock service...');
           session = await MockSupabaseService.createSession(
             user,
             sessionCode,
@@ -451,98 +479,6 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
     }
   };
 
-  // Force real Supabase session creation (for testing purposes)
-  const forceRealSupabaseSession = async (
-    user: User,
-    maxParticipants: number = 4,
-    requiresAllToMatch: boolean = true
-  ): Promise<string> => {
-    try {
-      setIsLoading(true);
-      console.log('🔧 FORCE REAL SUPABASE: Attempting session creation...');
-
-      // Generate session code
-      const sessionCode = generateSessionCode();
-      console.log('🎯 Generated session code for real Supabase:', sessionCode);
-
-      let session: SwipeSession | null = null;
-
-      // Try enhanced Supabase service with retry logic
-      try {
-        console.log('🔄 FORCE REAL: Attempting enhanced Supabase service with retry logic...');
-        session = await SimulatorSupabaseService.createSessionWithRetry(
-          user,
-          sessionCode,
-          maxParticipants,
-          requiresAllToMatch,
-          5 // Max 5 retries for forced attempt
-        );
-        console.log('🎉 FORCE REAL: Enhanced Supabase session created successfully!');
-      } catch (enhancedError) {
-        console.error('❌ FORCE REAL: Enhanced Supabase failed:', enhancedError);
-
-        // Try standard service as fallback
-        try {
-          console.log('🔄 FORCE REAL: Trying standard Supabase service...');
-          session = await SupabaseService.createSession(
-            user,
-            sessionCode,
-            maxParticipants,
-            requiresAllToMatch
-          );
-          console.log('🎉 FORCE REAL: Standard Supabase session created successfully!');
-        } catch (standardError) {
-          console.error('❌ FORCE REAL: Standard Supabase also failed:', standardError);
-
-          // Show user the error and reject the promise
-          Alert.alert(
-            'Real Supabase Failed',
-            `Unable to create real Supabase session. This is likely due to iOS simulator network limitations.\n\nError: ${standardError instanceof Error ? standardError.message : 'Unknown error'}\n\nTry testing on a real device or using web browser.`,
-            [{ text: 'OK' }]
-          );
-
-          throw new Error(`Failed to create real Supabase session: ${standardError instanceof Error ? standardError.message : 'Unknown error'}`);
-        }
-      }
-
-      if (!session) {
-        throw new Error('Failed to create real Supabase session - received null response');
-      }
-
-      console.log('✅ FORCE REAL: Session created successfully:', session);
-
-      // Set up real-time subscription
-      const channel = SupabaseService.subscribeToSession(session.id, (updatedSession) => {
-        if (updatedSession) {
-          setCurrentSession(updatedSession);
-          setParticipants(updatedSession.participants);
-        }
-      });
-
-      setSupabaseChannel(channel);
-      setCurrentSession(session);
-      setCurrentUser(user);
-      setIsHost(true);
-      setParticipants(session.participants);
-
-      console.log('🎉 FORCE REAL: Real Supabase session setup completed successfully!');
-
-      Alert.alert(
-        'Real Supabase Success!',
-        `Successfully created a real Supabase session!\n\nSession Code: ${sessionCode}\n\nThis session is now stored in the Supabase database and can be joined by other users.`,
-        [{ text: 'Great!' }]
-      );
-
-      return sessionCode;
-
-    } catch (error) {
-      console.error('❌ FORCE REAL: Failed to create real Supabase session:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Get session statistics
   const getSessionStats = () => {
     if (!currentSession) {
@@ -567,7 +503,6 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({ children }) =>
         participants,
         isHost,
         createSession,
-        forceRealSupabaseSession,
         joinSession,
         leaveSession,
         removeParticipant,
