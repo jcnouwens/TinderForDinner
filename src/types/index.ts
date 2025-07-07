@@ -94,3 +94,25 @@ export type ProfileScreenNavigationProp = import('@react-navigation/stack').Stac
   RootStackParamList,
   'Profile'
 >;
+
+// Clipboard and Connection Diagnostics Types
+export interface ClipboardResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface ConnectionDiagnostic {
+  test: string;
+  success: boolean;
+  duration: number;
+  error?: string;
+  details?: string;
+}
+
+export interface DiagnosticResult {
+  overall: boolean;
+  tests: ConnectionDiagnostic[];
+  timestamp: Date;
+  recommendations?: string[];
+}

@@ -15,6 +15,8 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, SessionParticipant } from '../types';
 import { useSession } from '../context/SessionContext';
 import { useAuth } from '../context/AuthContext';
+import { useClipboard } from '../hooks/useClipboard';
+import CopyButton from '../components/CopyButton';
 
 type SessionLobbyRouteProp = RouteProp<RootStackParamList, 'SessionLobby'>;
 type SessionLobbyNavigationProp = StackNavigationProp<RootStackParamList, 'SessionLobby'>;
@@ -34,6 +36,7 @@ const SessionLobbyScreen = () => {
         leaveSession,
     } = useSession();
 
+    const { copySessionCode } = useClipboard();
     const [isStarting, setIsStarting] = useState(false);
 
     // Navigate to swipe screen when session becomes active
@@ -45,8 +48,8 @@ const SessionLobbyScreen = () => {
 
     const handleCopySessionCode = async () => {
         if (currentSession?.sessionCode) {
-            await Clipboard.setStringAsync(currentSession.sessionCode);
-            Alert.alert('Copied!', 'Session code copied to clipboard');
+            // PATTERN: Use enhanced clipboard functionality
+            await copySessionCode(currentSession.sessionCode, true);
         }
     };
 
@@ -225,9 +228,17 @@ const SessionLobbyScreen = () => {
                 <Text style={styles.sessionCode}>Session Code</Text>
                 <View style={styles.codeContainer}>
                     <Text style={styles.code}>{currentSession.sessionCode}</Text>
-                    <TouchableOpacity style={styles.copyButton} onPress={handleCopySessionCode}>
-                        <Text style={styles.copyButtonText}>Copy</Text>
-                    </TouchableOpacity>
+                    <CopyButton 
+                        text={currentSession.sessionCode}
+                        variant="small"
+                        style={styles.copyButton}
+                        showAlert={false}
+                        onCopy={(success) => {
+                            if (success) {
+                                Alert.alert('Copied!', 'Session code copied to clipboard');
+                            }
+                        }}
+                    />
                 </View>
 
                 {isHost && (

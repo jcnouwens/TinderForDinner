@@ -6,7 +6,9 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
 import { useSession } from '../context/SessionContext';
 import { useAuth } from '../context/AuthContext';
+import { useClipboard } from '../hooks/useClipboard';
 import SupabaseTestComponent from '../components/SupabaseTestComponent';
+import ConnectionStatus from '../components/ConnectionStatus';
 import { runAllDebugTests } from '../utils/debugSupabase';
 import { DebugSupabaseService } from '../services/DebugSupabaseService';
 
@@ -20,6 +22,7 @@ const HomeScreen = () => {
   const [requiresAllToMatch, setRequiresAllToMatch] = useState(true);
   const { createSession, joinSession, isLoading } = useSession();
   const { user } = useAuth();
+  const { copySessionCode } = useClipboard();
 
   const handleCreateSession = async () => {
     console.log('🚀 handleCreateSession called');
@@ -43,7 +46,10 @@ const HomeScreen = () => {
         [
           {
             text: 'Copy Code',
-            onPress: () => Clipboard.setStringAsync(sessionCode),
+            onPress: async () => {
+              // PATTERN: Enhanced copy with visual feedback
+              await copySessionCode(sessionCode, true);
+            },
           },
           {
             text: 'Go to Lobby',
@@ -152,9 +158,12 @@ const HomeScreen = () => {
                   ]
                 );
               } else {
+                const errorMessage = result.error instanceof Error 
+                  ? result.error.message 
+                  : 'Unknown error';
                 Alert.alert(
                   '❌ Failed',
-                  `Could not create real Supabase session.\nError: ${result.error?.message || 'Unknown error'}\n\nThis is expected in iOS simulator.`,
+                  `Could not create real Supabase session.\nError: ${errorMessage}\n\nThis is expected in iOS simulator.`,
                   [{ text: 'OK' }]
                 );
               }
@@ -308,32 +317,40 @@ const HomeScreen = () => {
 
         <SupabaseTestComponent />
 
-        {/* Debug button - remove after fixing connection issues */}
-        <View style={[styles.card, { backgroundColor: '#fff3cd', borderColor: '#ffeaa7' }]}>
-          <Text style={styles.cardTitle}>🔧 Debug Connection</Text>
+        {/* Enhanced connection diagnostics */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🔧 Connection Diagnostics</Text>
           <Text style={styles.cardDescription}>
             Current user: {user ? `${user.name} (${user.id})` : 'Not signed in'}
           </Text>
-          <Text style={styles.cardDescription}>
-            If you're experiencing connection issues, tap this button to run diagnostic tests.
-          </Text>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: '#fdcb6e' }]}
-            onPress={handleDebugConnection}
-          >
-            <Text style={[styles.buttonText, { color: '#2d3436' }]}>
-              Run Debug Tests
-            </Text>
-          </TouchableOpacity>
+          
+          {/* PATTERN: Enhanced diagnostics with ConnectionStatus component */}
+          <ConnectionStatus 
+            onDiagnosticsComplete={(result) => {
+              console.log('Diagnostics completed:', result);
+            }}
+          />
+          
+          {/* Keep existing debug functionality for development */}
+          <View style={styles.debugButtons}>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: '#fdcb6e', marginTop: 10 }]}
+              onPress={handleDebugConnection}
+            >
+              <Text style={[styles.buttonText, { color: '#2d3436' }]}>
+                Legacy Debug Tests
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: '#e17055', marginTop: 10 }]}
-            onPress={handleForceRealSupabase}
-          >
-            <Text style={[styles.buttonText, { color: '#ffffff' }]}>
-              🚀 Force Real Supabase
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: '#e17055', marginTop: 10 }]}
+              onPress={handleForceRealSupabase}
+            >
+              <Text style={[styles.buttonText, { color: '#ffffff' }]}>
+                🚀 Force Real Supabase
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity
@@ -516,6 +533,9 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
+  },
+  debugButtons: {
+    marginTop: 10,
   },
 });
 
