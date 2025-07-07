@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Running the App
 - `npm install` - Install dependencies
-- `npm run ios` or `npx expo start --ios` - Run on iOS simulator
-- `npm run android` or `npx expo start --android` - Run on Android
+- `npm run ios` or `npx expo run:ios` - Run on iOS device/simulator
+- `npm run android` or `npx expo run:android` - Run on Android device/emulator
 - `npm start` or `npx expo start` - Start development server
+- `npm run web` or `npx expo start --web` - Run on web browser
 
 ### Testing
 - `npm test` - Run all Jest tests
