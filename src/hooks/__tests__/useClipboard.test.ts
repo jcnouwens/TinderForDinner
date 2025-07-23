@@ -102,24 +102,41 @@ describe('useClipboard', () => {
 
     expect(mockAlert.alert).toHaveBeenCalledWith(
       'Session Code Copied!',
-      'Session code "HAPPY-PIZZA-42" has been copied to your clipboard. Share it with friends to invite them!'
+      'Session code "HAPPY-PIZZA-42" has been copied to your clipboard. Share it with friends to invite them!',
+      [{ text: 'OK' }]
     );
   });
 
   it('should prevent multiple concurrent copy operations', async () => {
-    mockClipboardUtils.copyToClipboard.mockImplementation(() => 
-      new Promise(resolve => setTimeout(() => resolve({ success: true }), 1000))
-    );
+    let resolveFirst: any;
+    const firstCopyPromise = new Promise(resolve => {
+      resolveFirst = resolve;
+    });
+
+    mockClipboardUtils.copyToClipboard
+      .mockImplementationOnce(() => firstCopyPromise.then(() => ({ success: true })))
+      .mockImplementationOnce(() => Promise.resolve({ success: true }));
 
     const { result } = renderHook(() => useClipboard());
 
+    // Start first copy operation
     act(() => {
       result.current.copyText('text1');
+    });
+
+    // Try to start second copy operation while first is still loading
+    act(() => {
       result.current.copyText('text2'); // This should be ignored
     });
 
     expect(result.current.isLoading).toBe(true);
     expect(mockClipboardUtils.copyToClipboard).toHaveBeenCalledTimes(1);
+
+    // Resolve the first copy operation
+    await act(async () => {
+      resolveFirst();
+      await firstCopyPromise;
+    });
   });
 
   it('should read clipboard content', async () => {
@@ -136,12 +153,17 @@ describe('useClipboard', () => {
     expect(mockClipboardUtils.getFromClipboard).toHaveBeenCalled();
   });
 
-  it('should correctly identify recently copied text', () => {
+  it('should correctly identify recently copied text', async () => {
+    mockClipboardUtils.copyToClipboard.mockResolvedValue({
+      success: true,
+      message: 'Copied to clipboard!'
+    });
+
     const { result } = renderHook(() => useClipboard());
 
-    // Manually set the state to simulate a recent copy
-    act(() => {
-      result.current.copyText('recent-text');
+    // Perform an actual copy operation to set the state properly
+    await act(async () => {
+      await result.current.copyText('recent-text', false); // Don't show alert
     });
 
     // Fast forward time but stay within the window
