@@ -1,6 +1,18 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
 import { Alert } from 'react-native';
+
+// Configure WebBrowser for authentication
+WebBrowser.maybeCompleteAuthSession();
+
+// Google OAuth discovery configuration
+const discovery = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/auth',
+  tokenEndpoint: 'https://oauth2.googleapis.com/token',
+  revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+};
 
 // Define the shape of our user object
 type User = {
@@ -122,28 +134,68 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
 
-      // In a real app, you would integrate with Google Sign-In
-      // For now, we'll simulate a successful login
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // For web development, use a simple localhost redirect
+      const webRedirectUri = `${window.location.origin}`;
+      
+      console.log('Using redirect URI:', webRedirectUri);
+      console.log('Google Client ID:', process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID);
 
-      // Simulate API response
-      const mockUser = {
-        id: 'google-123',
-        name: 'Google User',
-        email: 'google@example.com',
-        avatar: 'https://randomuser.me/api/portraits/women/1.jpg',
-        token: 'mock-google-token',
-      };
+      // Create auth URL
+      const authUrl = `${discovery.authorizationEndpoint}?` +
+        `client_id=${encodeURIComponent(process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID!)}&` +
+        `redirect_uri=${encodeURIComponent(webRedirectUri)}&` +
+        `response_type=code&` +
+        `scope=${encodeURIComponent('openid profile email')}&` +
+        `access_type=offline&` +
+        `prompt=select_account`;
 
-      // Store the user token in secure storage
-      await SecureStore.setItemAsync('userToken', mockUser.token);
+      console.log('Auth URL:', authUrl);
 
-      // Update the user state
-      setUser(mockUser);
+      // Open auth session
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        webRedirectUri
+      );
+
+      console.log('Auth result:', result);
+
+      if (result.type === 'success' && result.url) {
+        // Parse the response URL to get the authorization code
+        const url = new URL(result.url);
+        const code = url.searchParams.get('code');
+        
+        if (code) {
+          // In a real app, you would exchange the code for an access token
+          // and get user info from Google's API
+          // For now, we'll create a mock user with the code as token
+          const mockUser = {
+            id: 'google-' + Date.now(),
+            name: 'Google User',
+            email: 'google@example.com',
+            avatar: 'https://randomuser.me/api/portraits/women/1.jpg',
+            token: code,
+          };
+
+          // Store the user token in secure storage
+          await SecureStore.setItemAsync('userToken', mockUser.token);
+          
+          // Update the user state
+          setUser(mockUser);
+          
+          Alert.alert('Success', 'Successfully signed in with Google!');
+        } else {
+          throw new Error('No authorization code received');
+        }
+      } else if (result.type === 'cancel') {
+        throw new Error('User cancelled Google sign-in');
+      } else {
+        throw new Error('Google sign-in failed');
+      }
 
     } catch (error) {
       console.error('Error signing in with Google:', error);
-      throw new Error('Failed to sign in with Google. Please try again.');
+      Alert.alert('Sign In Error', 'Failed to sign in with Google. Please try again.');
+      throw error;
     } finally {
       setIsLoading(false);
     }

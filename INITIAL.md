@@ -1,7 +1,5 @@
 ## FEATURE:
 
-- Copy session-code to clipboard
-- Test connection with backend
 - Setup the Google authentication feature
 
 ## EXAMPLES:
